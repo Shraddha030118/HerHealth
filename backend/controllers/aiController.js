@@ -1,9 +1,16 @@
-const ChatConversation = require('../models/ChatConversation');
+/**
+ * HerHealth AI — AI Chat Controller (Firebase Firestore)
+ */
+const { getFirestore } = require('../config/firebase');
+const { FieldValue } = require('firebase-admin/firestore');
 const { generateChatResponse } = require('../services/aiService');
 
 exports.chat = async (req, res, next) => {
   try {
-    const userId = req.session.userId;
+    const userId = req.user?.uid;
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Authentication required.' });
+    }
     const { message, consentToStoreHistory = true } = req.body;
 
     if (!message || message.trim() === '') {
@@ -13,17 +20,15 @@ exports.chat = async (req, res, next) => {
       });
     }
 
-    // Find conversation history if consent given
-    let conversation = await ChatConversation.findOne({ userId });
-    if (!conversation) {
-      conversation = new ChatConversation({
-        userId,
-        messages: [],
-        consentStatus: Boolean(consentToStoreHistory)
-      });
-    }
+    const db = getFirestore();
+    const chatDocRef = db.collection('chatConversations').doc(userId);
+    const chatDoc = await chatDocRef.get();
 
-    const previousMessages = conversation.consentStatus ? conversation.messages : [];
+    let conversation = chatDoc.exists
+      ? chatDoc.data()
+      : { userId, messages: [], consentStatus: Boolean(consentToStoreHistory) };
+
+    const previousMessages = conversation.consentStatus ? (conversation.messages || []) : [];
 
     // Generate educational AI response or demo fallback
     const result = await generateChatResponse({
@@ -32,22 +37,27 @@ exports.chat = async (req, res, next) => {
     });
 
     if (conversation.consentStatus) {
-      conversation.messages.push({
+      const messages = conversation.messages || [];
+      messages.push({
         sender: 'user',
         text: message.trim(),
-        timestamp: new Date()
+        timestamp: new Date().toISOString()
       });
-      conversation.messages.push({
+      messages.push({
         sender: 'assistant',
         text: result.text,
         isDemoFallback: result.isDemoFallback,
-        timestamp: new Date()
+        timestamp: new Date().toISOString()
       });
-      // Keep within reasonable history size
-      if (conversation.messages.length > 50) {
-        conversation.messages = conversation.messages.slice(-50);
-      }
-      await conversation.save();
+
+      const trimmedMessages = messages.length > 50 ? messages.slice(-50) : messages;
+
+      await chatDocRef.set({
+        userId,
+        messages: trimmedMessages,
+        consentStatus: conversation.consentStatus,
+        updatedAt: FieldValue.serverTimestamp()
+      }, { merge: true });
     }
 
     return res.status(200).json({
@@ -56,7 +66,7 @@ exports.chat = async (req, res, next) => {
       isDemoFallback: result.isDemoFallback,
       provider: result.provider,
       disclaimer: result.disclaimer,
-      conversationId: conversation._id
+      conversationId: userId
     });
   } catch (err) {
     next(err);
@@ -65,11 +75,18 @@ exports.chat = async (req, res, next) => {
 
 exports.getConversations = async (req, res, next) => {
   try {
-    const userId = req.session.userId;
-    const conversation = await ChatConversation.findOne({ userId });
+    const userId = req.user?.uid;
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Authentication required.' });
+    }
+
+    const db = getFirestore();
+    const chatDoc = await db.collection('chatConversations').doc(userId).get();
+    const conversation = chatDoc.exists ? chatDoc.data() : null;
+
     return res.status(200).json({
       success: true,
-      messages: conversation ? conversation.messages : [],
+      messages: conversation ? (conversation.messages || []) : [],
       consentStatus: conversation ? conversation.consentStatus : true
     });
   } catch (err) {
@@ -79,8 +96,13 @@ exports.getConversations = async (req, res, next) => {
 
 exports.clearConversation = async (req, res, next) => {
   try {
-    const userId = req.session.userId;
-    await ChatConversation.findOneAndDelete({ userId });
+    const userId = req.user?.uid;
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Authentication required.' });
+    }
+
+    const db = getFirestore();
+    await db.collection('chatConversations').doc(userId).delete();
     return res.status(200).json({
       success: true,
       message: 'Chat history cleared successfully.'

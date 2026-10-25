@@ -14,7 +14,7 @@ const requireAuth = async (req, res, next) => {
     // Also allow token passed as cookie for backwards compat with older frontend pages
     const token = tokenFromHeader || req.cookies?.firebaseToken;
 
-    if (!token) {
+    if (!token || token === 'null' || token === 'undefined') {
       return res.status(401).json({
         success: false,
         error: 'Authentication required. Please log in to access this resource.'

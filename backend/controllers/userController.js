@@ -6,7 +6,8 @@ const { FieldValue } = require('firebase-admin/firestore');
 
 exports.getProfile = async (req, res, next) => {
   try {
-    const uid = req.user.uid;
+    const uid = req.user?.uid;
+    if (!uid) return res.status(401).json({ success: false, error: 'Authentication required.' });
     const db = getFirestore();
     const userDoc = await db.collection('users').doc(uid).get();
     const user = userDoc.exists ? { uid, ...userDoc.data() } : req.user;
@@ -18,7 +19,8 @@ exports.getProfile = async (req, res, next) => {
 
 exports.updateProfile = async (req, res, next) => {
   try {
-    const uid = req.user.uid;
+    const uid = req.user?.uid;
+    if (!uid) return res.status(401).json({ success: false, error: 'Authentication required.' });
     const {
       name, age, averageCycleLength, averagePeriodDuration,
       lastPeriodStartDate, notificationPreferences, profileImage
@@ -51,7 +53,8 @@ exports.updateProfile = async (req, res, next) => {
 
 exports.deleteAccount = async (req, res, next) => {
   try {
-    const uid = req.user.uid;
+    const uid = req.user?.uid;
+    if (!uid) return res.status(401).json({ success: false, error: 'Authentication required.' });
     const db = getFirestore();
 
     // Delete all Firestore collections for this user
