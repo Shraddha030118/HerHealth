@@ -30,6 +30,7 @@ import {
   onSnapshot,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getAnalytics, isSupported } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDbI3ID76xxZaFrDAbsqLNRANRgtgqA8lY",
@@ -41,10 +42,14 @@ const firebaseConfig = {
   measurementId: "G-FXVH434GF0"
 };
 
-// Initialize Firebase App, Auth, and Firestore
+// Initialize Firebase App, Auth, Firestore, and Analytics
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+let analytics = null;
+isSupported().then(supported => {
+  if (supported) analytics = getAnalytics(app);
+}).catch(() => {});
 
 window.HerHealthFirebase = {
   app,
