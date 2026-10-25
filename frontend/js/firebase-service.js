@@ -74,6 +74,20 @@ async function firebaseRegister({ email, password, name, age }) {
     console.warn('[Firestore] Could not save user profile doc (check security rules):', err.message);
   }
 
+  // Cache token & user locally for instant dashboard loading
+  try {
+    const token = await user.getIdToken();
+    localStorage.setItem('herhealth_token', token);
+    document.cookie = `firebaseToken=${token}; path=/; max-age=86400; SameSite=Lax`;
+    localStorage.setItem('herhealth_user', JSON.stringify({
+      uid: user.uid,
+      name: name || user.displayName || 'User',
+      email: user.email,
+      averageCycleLength: 28,
+      averagePeriodDuration: 5
+    }));
+  } catch (e) {}
+
   // Also sync with backend session so PDF generation & AI endpoints work simultaneously
   try {
     await apiFetch('/api/auth/register', {
@@ -93,6 +107,20 @@ async function firebaseLogin(email, password) {
 
   const userCredential = await fb.signInWithEmailAndPassword(fb.auth, email, password);
   const user = userCredential.user;
+
+  // Cache token & user locally for instant dashboard loading
+  try {
+    const token = await user.getIdToken();
+    localStorage.setItem('herhealth_token', token);
+    document.cookie = `firebaseToken=${token}; path=/; max-age=86400; SameSite=Lax`;
+    localStorage.setItem('herhealth_user', JSON.stringify({
+      uid: user.uid,
+      name: user.displayName || 'User',
+      email: user.email,
+      averageCycleLength: 28,
+      averagePeriodDuration: 5
+    }));
+  } catch (e) {}
 
   // Ensure Firestore user document exists
   try {
@@ -137,6 +165,21 @@ async function firebaseGoogleSignIn() {
   const result = await fb.signInWithPopup(fb.auth, provider);
   const user = result.user;
 
+  // Cache token & user locally
+  try {
+    const token = await user.getIdToken();
+    localStorage.setItem('herhealth_token', token);
+    document.cookie = `firebaseToken=${token}; path=/; max-age=86400; SameSite=Lax`;
+    localStorage.setItem('herhealth_user', JSON.stringify({
+      uid: user.uid,
+      name: user.displayName || 'Google User',
+      email: user.email,
+      profileImage: user.photoURL || '',
+      averageCycleLength: 28,
+      averagePeriodDuration: 5
+    }));
+  } catch (e) {}
+
   // Persist in Firestore
   try {
     const userDocRef = fb.doc(fb.db, 'users', user.uid);
@@ -175,6 +218,9 @@ async function firebaseGoogleSignIn() {
 }
 
 async function firebaseLogout() {
+  localStorage.removeItem('herhealth_token');
+  localStorage.removeItem('herhealth_user');
+  document.cookie = 'firebaseToken=; path=/; max-age=0';
   const fb = await waitForFirebase();
   if (fb && fb.auth) {
     try {

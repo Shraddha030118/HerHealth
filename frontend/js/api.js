@@ -5,16 +5,77 @@
 
 const API_BASE = ''; // Relative path — works on same origin (Vercel)
 
+// Cache ready promise so multiple calls don't re-attach listeners
+let authReadyPromise = null;
+
+function waitForAuthReady(timeoutMs = 2500) {
+  if (authReadyPromise) return authReadyPromise;
+
+  authReadyPromise = new Promise((resolve) => {
+    // 1. Check if already available synchronously
+    const fb = window.HerHealthFirebase;
+    if (fb && fb.auth && fb.auth.currentUser) {
+      return resolve(fb.auth.currentUser);
+    }
+
+    let resolved = false;
+
+    // Helper to attach onAuthStateChanged
+    const attach = (f) => {
+      if (!f || !f.auth || !f.onAuthStateChanged) return;
+      try {
+        const unsubscribe = f.onAuthStateChanged(f.auth, (user) => {
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(timer);
+            if (typeof unsubscribe === 'function') unsubscribe();
+            resolve(user);
+          }
+        });
+      } catch (e) {
+        // Fallback
+      }
+    };
+
+    // 2. Safety timeout — if Firebase is slow, don't block forever
+    const timer = setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        const currentFb = window.HerHealthFirebase;
+        resolve(currentFb?.auth?.currentUser || null);
+      }
+    }, timeoutMs);
+
+    if (fb && fb.auth) {
+      attach(fb);
+    } else {
+      window.addEventListener('herhealth-firebase-ready', (e) => {
+        attach(e.detail);
+      }, { once: true });
+    }
+  });
+
+  return authReadyPromise;
+}
+
 // Get the current Firebase user's ID token for API authorization
 async function getFirebaseToken() {
   try {
-    const fb = window.HerHealthFirebase;
-    if (!fb || !fb.auth || !fb.auth.currentUser) return null;
-    return await fb.auth.currentUser.getIdToken(/* forceRefresh */ false);
+    const user = await waitForAuthReady();
+    if (user && typeof user.getIdToken === 'function') {
+      const token = await user.getIdToken(/* forceRefresh */ false);
+      if (token) {
+        localStorage.setItem('herhealth_token', token);
+        document.cookie = `firebaseToken=${token}; path=/; max-age=86400; SameSite=Lax`;
+        return token;
+      }
+    }
   } catch (e) {
-    console.warn('[API] Could not get Firebase token:', e.message);
-    return null;
+    console.warn('[API] Could not get live Firebase token:', e.message);
   }
+
+  // Fallback to cached token in localStorage
+  return localStorage.getItem('herhealth_token') || null;
 }
 
 // Generic Fetch wrapper with Firebase token auth and error handling
@@ -160,22 +221,49 @@ function confirmAction({ title = 'Confirm Action', message = 'Are you sure?', co
 
 // Check current user session and setup header/sidebar
 async function checkAuthAndInitUI() {
+  const fbUser = await waitForAuthReady();
+  let user = null;
+
   try {
     const data = await apiFetch('/api/auth/me');
-    if (data.success && data.user) {
-      renderUserElements(data.user);
-      loadNotificationCount();
-      return data.user;
+    if (data && data.success && data.user) {
+      user = data.user;
     }
   } catch (err) {
-    const currentPath = window.location.pathname;
-    const publicPages = ['/', '/index.html', '/pages/login.html', '/pages/register.html'];
-    const isPublic = publicPages.some(p => currentPath.endsWith(p));
-    if (!isPublic) {
-      window.location.href = '/pages/login.html';
-    }
-    return null;
+    console.warn('[Auth] /api/auth/me check note:', err.message);
   }
+
+  // If backend endpoint is temporarily unavailable, fall back to active Firebase user
+  if (!user && fbUser) {
+    let cachedUser = {};
+    try { cachedUser = JSON.parse(localStorage.getItem('herhealth_user') || '{}'); } catch (e) {}
+
+    user = {
+      uid: fbUser.uid,
+      name: fbUser.displayName || cachedUser.name || (fbUser.email ? fbUser.email.split('@')[0] : 'Friend'),
+      email: fbUser.email || cachedUser.email || '',
+      profileImage: fbUser.photoURL || cachedUser.profileImage || '',
+      averageCycleLength: cachedUser.averageCycleLength || 28,
+      averagePeriodDuration: cachedUser.averagePeriodDuration || 5
+    };
+  }
+
+  if (user) {
+    try { localStorage.setItem('herhealth_user', JSON.stringify(user)); } catch (e) {}
+    renderUserElements(user);
+    loadNotificationCount();
+    return user;
+  }
+
+  // Not authenticated — redirect to login if on private page
+  const currentPath = window.location.pathname;
+  const publicPages = ['/', '/index.html', '/pages/login.html', '/pages/register.html'];
+  const isPublic = publicPages.some(p => currentPath.endsWith(p));
+  if (!isPublic) {
+    sessionStorage.setItem('redirect_after_login', window.location.pathname);
+    window.location.href = '/pages/login.html';
+  }
+  return null;
 }
 
 function renderUserElements(user) {

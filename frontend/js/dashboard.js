@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupGreeting(user);
   setupDateDisplay();
   setupModals();
-  await loadDashboardData();
+  await loadDashboardData(user);
 });
 
 function setupGreeting(user) {
@@ -41,31 +41,64 @@ function setupDateDisplay() {
   if (pStartInput) pStartInput.value = todayStr;
 }
 
-async function loadDashboardData() {
+async function loadDashboardData(user = {}) {
+  // 1. Fetch Periods and Cycle Analytics
   try {
-    // 1. Fetch Periods and Cycle Analytics
     const periodData = await apiFetch('/api/periods');
-    renderCycleMetrics(periodData.metrics);
-    renderPeriodsList(periodData.records);
-
-    // 2. Fetch Symptoms and Trends
-    const symptomData = await apiFetch('/api/symptoms?limit=14');
-    renderSymptomsList(symptomData.logs);
-    renderCharts(symptomData.trends);
-
-    // 3. Fetch Alerts
-    const alertData = await apiFetch('/api/alerts');
-    renderAlerts(alertData.alerts);
-
-    // 4. Fetch Hydration
-    const hydData = await apiFetch('/api/wellness/hydration');
-    if (hydData.success && hydData.hydration) {
-      document.getElementById('metric-hydration').textContent = `${hydData.hydration.glasses} / 8`;
+    if (periodData && periodData.metrics) {
+      renderCycleMetrics(periodData.metrics);
+      renderPeriodsList(periodData.records || []);
+    } else {
+      renderDefaultCycleMetrics(user);
     }
   } catch (err) {
-    console.error('Error loading dashboard data:', err);
-    showToast('Failed to load some health metrics: ' + err.message, 'error');
+    console.warn('[Dashboard] Periods fetch note:', err.message);
+    renderDefaultCycleMetrics(user);
   }
+
+  // 2. Fetch Symptoms and Trends
+  try {
+    const symptomData = await apiFetch('/api/symptoms?limit=14');
+    if (symptomData) {
+      renderSymptomsList(symptomData.logs || []);
+      renderCharts(symptomData.trends);
+    }
+  } catch (err) {
+    console.warn('[Dashboard] Symptoms fetch note:', err.message);
+  }
+
+  // 3. Fetch Alerts
+  try {
+    const alertData = await apiFetch('/api/alerts');
+    if (alertData && alertData.alerts) {
+      renderAlerts(alertData.alerts);
+    }
+  } catch (err) {
+    console.warn('[Dashboard] Alerts fetch note:', err.message);
+  }
+
+  // 4. Fetch Hydration
+  try {
+    const hydData = await apiFetch('/api/wellness/hydration');
+    if (hydData && hydData.success && hydData.hydration) {
+      const hydEl = document.getElementById('metric-hydration');
+      if (hydEl) hydEl.textContent = `${hydData.hydration.glasses || 0} / 8`;
+    }
+  } catch (err) {
+    console.warn('[Dashboard] Hydration fetch note:', err.message);
+  }
+}
+
+function renderDefaultCycleMetrics(user) {
+  renderCycleMetrics({
+    currentCycleDay: null,
+    cyclePhase: 'Cycle Tracking',
+    phaseDescription: 'Log your period records to get personalized cycle phase insights and estimates.',
+    averageCycleLength: user?.averageCycleLength || 28,
+    averagePeriodDuration: user?.averagePeriodDuration || 5,
+    daysUntilNextPeriod: null,
+    isCycleLengthEstimated: true
+  });
 }
 
 function renderCycleMetrics(metrics) {
