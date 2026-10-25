@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Health Assessment — HerHealth AI</title>
+  <title>Health Questionnaire — HerHealth AI</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -38,7 +38,7 @@
         </a>
         <a href="/pages/health-assessment.html" class="nav-link active">
           <span class="nav-icon">📝</span>
-          <span>Health Assessment</span>
+          <span>Health Questionnaire</span>
         </a>
 
         <div class="nav-section-title">Care & Wellness</div>
@@ -87,7 +87,7 @@
       <header class="app-topbar">
         <div class="topbar-left">
           <button class="menu-toggle-btn" aria-label="Toggle navigation">☰</button>
-          <h1 class="page-title">Menstrual Health Baseline Assessment</h1>
+          <h1 class="page-title">Health Questionnaire</h1>
         </div>
         <div class="topbar-right">
           <button class="btn btn-secondary btn-sm" onclick="logoutUser()">Sign Out</button>
@@ -95,8 +95,315 @@
       </header>
 
       <main class="content-area">
-        <!-- Assessment Form Card -->
-        <div class="assessment-stepper-card">
+        <section class="assessment-stepper-card questionnaire-card" aria-labelledby="questionnaire-title">
+          <h2 id="questionnaire-title">Your symptoms, at your pace</h2>
+          <p class="questionnaire-intro">Share only what you feel comfortable sharing. Your answers are stored in your HerHealth account and are not a diagnosis. You can save a draft and return later.</p>
+          <div id="urgent-warning" class="questionnaire-warning" role="alert" aria-live="assertive" hidden></div>
+
+          <div class="step-progress-wrapper">
+            <div class="questionnaire-progress-label">
+              <span id="step-indicator-text">Step 1 of 6: Cycle information</span>
+              <span class="badge badge-lavender" id="completion-status-badge">In Progress</span>
+            </div>
+            <div class="step-progress-bar-bg" role="progressbar" aria-label="Questionnaire progress" aria-valuemin="1" aria-valuemax="6" aria-valuenow="1">
+              <div class="step-progress-bar-fill" id="step-progress-fill"></div>
+            </div>
+          </div>
+
+          <form id="questionnaire-form" novalidate>
+            <section class="step-content-pane active" data-step="1" aria-labelledby="step-one-title">
+              <h3 id="step-one-title">A. Menstrual cycle information</h3>
+              <p>Approximate answers are okay. Use “Not sure” or leave a question blank.</p>
+              <div class="form-group">
+                <label class="form-label" for="lastPeriodStart">When did your last period start?</label>
+                <input class="form-input" id="lastPeriodStart" name="lastPeriodStart" type="date">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="periodDuration">How many days does your period usually last?</label>
+                <input class="form-input" id="periodDuration" name="periodDuration" type="number" min="1" max="30" inputmode="numeric">
+                <select class="form-select uncertainty-select" aria-label="Period duration answer" data-uncertainty-for="periodDuration">
+                  <option value="">Enter a number or select</option><option>Not sure</option><option>Prefer not to answer</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="cycleLength">What is your usual menstrual cycle length, in days?</label>
+                <input class="form-input" id="cycleLength" name="cycleLength" type="number" min="1" max="100" inputmode="numeric">
+                <select class="form-select uncertainty-select" aria-label="Cycle length answer" data-uncertainty-for="cycleLength">
+                  <option value="">Enter a number or select</option><option>Not sure</option><option>Prefer not to answer</option>
+                </select>
+              </div>
+              <fieldset class="form-group">
+                <legend class="form-label">Are your periods usually regular or irregular?</legend>
+                <div class="choice-grid">
+                  <label class="choice-label-card"><input type="radio" name="cycleRegularity" value="Regular"> Regular</label>
+                  <label class="choice-label-card"><input type="radio" name="cycleRegularity" value="Irregular"> Irregular</label>
+                  <label class="choice-label-card"><input type="radio" name="cycleRegularity" value="Not sure"> Not sure</label>
+                  <label class="choice-label-card"><input type="radio" name="cycleRegularity" value="Prefer not to answer"> Prefer not to answer</label>
+                </div>
+              </fieldset>
+              <fieldset class="form-group">
+                <legend class="form-label">Have you missed a period unexpectedly?</legend>
+                <div class="choice-grid">
+                  <label class="choice-label-card"><input type="radio" name="missedPeriod" value="Yes"> Yes</label>
+                  <label class="choice-label-card"><input type="radio" name="missedPeriod" value="No"> No</label>
+                  <label class="choice-label-card"><input type="radio" name="missedPeriod" value="Not sure"> Not sure</label>
+                  <label class="choice-label-card"><input type="radio" name="missedPeriod" value="Prefer not to answer"> Prefer not to answer</label>
+                </div>
+              </fieldset>
+              <fieldset class="form-group">
+                <legend class="form-label">Have you noticed any recent changes in your cycle?</legend>
+                <div class="choice-grid">
+                  <label class="choice-label-card"><input type="radio" name="recentCycleChanges" value="Yes"> Yes</label>
+                  <label class="choice-label-card"><input type="radio" name="recentCycleChanges" value="No"> No</label>
+                  <label class="choice-label-card"><input type="radio" name="recentCycleChanges" value="Not sure"> Not sure</label>
+                  <label class="choice-label-card"><input type="radio" name="recentCycleChanges" value="Prefer not to answer"> Prefer not to answer</label>
+                </div>
+              </fieldset>
+            </section>
+
+            <section class="step-content-pane" data-step="2" aria-labelledby="step-two-title">
+              <h3 id="step-two-title">B. Symptoms and pain</h3>
+              <fieldset class="form-group">
+                <legend class="form-label">Do you experience menstrual pain or cramps?</legend>
+                <div class="choice-grid">
+                  <label class="choice-label-card"><input type="radio" name="experiencesPain" value="Yes"> Yes</label>
+                  <label class="choice-label-card"><input type="radio" name="experiencesPain" value="No"> No</label>
+                  <label class="choice-label-card"><input type="radio" name="experiencesPain" value="Not sure"> Not sure</label>
+                  <label class="choice-label-card"><input type="radio" name="experiencesPain" value="Prefer not to answer"> Prefer not to answer</label>
+                </div>
+              </fieldset>
+              <div class="form-group">
+                <label class="form-label" for="painLevel">Rate your pain from 0 to 10</label>
+                <select class="form-select" id="painLevel" name="painLevel">
+                  <option value="">Choose a rating</option>
+                  <option value="0">0 — No pain</option><option value="1">1</option><option value="2">2</option>
+                  <option value="3">3</option><option value="4">4</option><option value="5">5</option>
+                  <option value="6">6</option><option value="7">7</option><option value="8">8</option>
+                  <option value="9">9</option><option value="10">10 — Worst pain</option>
+                  <option>Not sure</option><option>Prefer not to answer</option>
+                </select>
+              </div>
+              <fieldset class="form-group">
+                <legend class="form-label">Where do you experience pain? Select all that apply.</legend>
+                <div class="choice-grid">
+                  <label class="choice-label-card"><input type="checkbox" name="painLocations" value="Lower abdomen"> Lower abdomen</label>
+                  <label class="choice-label-card"><input type="checkbox" name="painLocations" value="Lower back"> Lower back</label>
+                  <label class="choice-label-card"><input type="checkbox" name="painLocations" value="Pelvis"> Pelvis</label>
+                  <label class="choice-label-card"><input type="checkbox" name="painLocations" value="Shoulder tip"> Shoulder tip</label>
+                  <label class="choice-label-card"><input type="checkbox" name="painLocations" value="Other"> Elsewhere</label>
+                  <label class="choice-label-card"><input type="checkbox" name="painLocations" value="Not sure"> Not sure</label>
+                  <label class="choice-label-card"><input type="checkbox" name="painLocations" value="Prefer not to answer"> Prefer not to answer</label>
+                </div>
+                <label class="form-label" for="painLocationOther">Other location (optional)</label>
+                <input class="form-input" id="painLocationOther" name="painLocationOther" maxlength="500">
+              </fieldset>
+              <fieldset class="form-group">
+                <legend class="form-label">Which symptoms have you experienced? Select all that apply.</legend>
+                <div class="choice-grid">
+                  <label class="choice-label-card"><input type="checkbox" name="symptoms" value="cramps"> Abdominal cramps</label>
+                  <label class="choice-label-card"><input type="checkbox" name="symptoms" value="severe_pelvic_pain"> Severe abdominal or pelvic pain</label>
+                  <label class="choice-label-card"><input type="checkbox" name="symptoms" value="back_pain"> Back pain</label>
+                  <label class="choice-label-card"><input type="checkbox" name="symptoms" value="headache"> Headache</label>
+                  <label class="choice-label-card"><input type="checkbox" name="symptoms" value="nausea_vomiting"> Nausea or vomiting</label>
+                  <label class="choice-label-card"><input type="checkbox" name="symptoms" value="dizziness_fainting"> Dizziness or fainting</label>
+                  <label class="choice-label-card"><input type="checkbox" name="symptoms" value="fatigue_weakness"> Unusual fatigue or weakness</label>
+                  <label class="choice-label-card"><input type="checkbox" name="symptoms" value="bloating"> Bloating</label>
+                  <label class="choice-label-card"><input type="checkbox" name="symptoms" value="fever"> Fever</label>
+                  <label class="choice-label-card"><input type="checkbox" name="symptoms" value="breathlessness"> Severe difficulty breathing</label>
+                  <label class="choice-label-card"><input type="checkbox" name="symptoms" value="confusion"> Confusion</label>
+                  <label class="choice-label-card"><input type="checkbox" name="symptoms" value="other"> Other symptoms</label>
+                  <label class="choice-label-card"><input type="checkbox" name="symptoms" value="none"> None of these</label>
+                </div>
+                <label class="form-label" for="otherSymptoms">Other symptoms (optional)</label>
+                <input class="form-input" id="otherSymptoms" name="otherSymptoms" maxlength="500">
+              </fieldset>
+              <div class="form-group">
+                <label class="form-label" for="symptomTiming">When do these symptoms occur?</label>
+                <select class="form-select" id="symptomTiming" name="symptomTiming">
+                  <option value="">Choose if known</option><option>Before period</option><option>During period</option>
+                  <option>After period</option><option>Throughout cycle</option><option>Varies</option>
+                  <option>Not sure</option><option>Prefer not to answer</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="interferesWithDailyActivities">Do symptoms interfere with daily activities?</label>
+                <select class="form-select" id="interferesWithDailyActivities" name="interferesWithDailyActivities">
+                  <option value="">Choose if you wish</option><option>No</option><option>Sometimes</option>
+                  <option>Yes, significantly</option><option>Not sure</option><option>Prefer not to answer</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="symptomProgression">Are symptoms new, worsening, persistent, or different from usual?</label>
+                <select class="form-select" id="symptomProgression" name="symptomProgression">
+                  <option value="">Choose if you wish</option><option>Usual for me</option><option>New</option>
+                  <option>Worsening</option><option>Persistent across multiple cycles</option>
+                  <option>Different from usual</option><option>Not sure</option><option>Prefer not to answer</option>
+                </select>
+              </div>
+            </section>
+
+            <section class="step-content-pane" data-step="3" aria-labelledby="step-three-title">
+              <h3 id="step-three-title">C. Bleeding patterns</h3>
+              <div class="form-group">
+                <label class="form-label" for="flowDescription">How would you describe your menstrual flow?</label>
+                <select class="form-select" id="flowDescription" name="flowDescription">
+                  <option value="">Choose if you wish</option><option>Light</option><option>Moderate</option>
+                  <option>Heavy</option><option>Very heavy</option><option>Not sure</option><option>Prefer not to answer</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="productChangeFrequency">How often do you need to change a menstrual product during heavy bleeding?</label>
+                <select class="form-select" id="productChangeFrequency" name="productChangeFrequency">
+                  <option value="">Choose if you wish</option><option>Less often than every 3 hours</option>
+                  <option>Every 2-3 hours</option><option>Every 1-2 hours</option>
+                  <option>Every hour or more often for 2+ consecutive hours</option>
+                  <option>Varies</option><option>Not sure</option><option>Prefer not to answer</option>
+                </select>
+                <p class="form-help">Product absorbency varies. Consider flooding, leakage, and how often you personally need a change.</p>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="floodingOrClots">Have you experienced flooding, leakage, or large clots?</label>
+                <select class="form-select" id="floodingOrClots" name="floodingOrClots">
+                  <option value="">Choose if you wish</option><option>No</option><option>Flooding or leakage</option>
+                  <option>Large clots</option><option>Flooding or leakage and large clots</option>
+                  <option>Not sure</option><option>Prefer not to answer</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="bleedingBetweenPeriods">Have you experienced bleeding between periods?</label>
+                <select class="form-select" id="bleedingBetweenPeriods" name="bleedingBetweenPeriods">
+                  <option value="">Choose if you wish</option><option>Yes</option><option>No</option>
+                  <option>Not sure</option><option>Prefer not to answer</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="prolongedBleeding">Have you noticed unusually prolonged bleeding?</label>
+                <select class="form-select" id="prolongedBleeding" name="prolongedBleeding">
+                  <option value="">Choose if you wish</option><option>Yes</option><option>No</option>
+                  <option>Not sure</option><option>Prefer not to answer</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="bleedingWithDizzinessOrSeverePain">Have you experienced bleeding accompanied by severe pain or dizziness?</label>
+                <select class="form-select" id="bleedingWithDizzinessOrSeverePain" name="bleedingWithDizzinessOrSeverePain">
+                  <option value="">Choose if you wish</option><option>Neither</option><option>Dizziness</option>
+                  <option>Severe pain</option><option>Both</option><option>Not sure</option><option>Prefer not to answer</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="faintingOrCollapse">Have you fainted or collapsed?</label>
+                <select class="form-select" id="faintingOrCollapse" name="faintingOrCollapse">
+                  <option value="">Choose if you wish</option><option>Yes</option><option>No</option>
+                  <option>Not sure</option><option>Prefer not to answer</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="isTypicalBleeding">Is this bleeding pattern typical for you or a recent change?</label>
+                <select class="form-select" id="isTypicalBleeding" name="isTypicalBleeding">
+                  <option value="">Choose if you wish</option><option>Typical for me</option><option>Recent change</option>
+                  <option>Not sure</option><option>Prefer not to answer</option>
+                </select>
+              </div>
+            </section>
+
+            <section class="step-content-pane" data-step="4" aria-labelledby="step-four-title">
+              <h3 id="step-four-title">D. Mood and well-being</h3>
+              <p>These questions support general well-being awareness and are not a mental health diagnosis.</p>
+              <div class="form-group">
+                <label class="form-label" for="moodDescription">How would you describe your mood?</label>
+                <input class="form-input" id="moodDescription" name="moodDescription" maxlength="500">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="emotionalChanges">Have you experienced anxiety, irritability, or unusual emotional changes?</label>
+                <select class="form-select" id="emotionalChanges" name="emotionalChanges">
+                  <option value="">Choose if you wish</option><option>No</option><option>Yes</option>
+                  <option>Not sure</option><option>Prefer not to answer</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="sleepQuality">How has your sleep been?</label>
+                <input class="form-input" id="sleepQuality" name="sleepQuality" maxlength="500">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="energyLevel">How would you rate your energy level?</label>
+                <input class="form-input" id="energyLevel" name="energyLevel" maxlength="500">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="wellbeingInterference">Has menstrual discomfort affected work, studies, or daily activities?</label>
+                <select class="form-select" id="wellbeingInterference" name="wellbeingInterference">
+                  <option value="">Choose if you wish</option><option>No</option><option>Sometimes</option>
+                  <option>Yes, significantly</option><option>Not sure</option><option>Prefer not to answer</option>
+                </select>
+              </div>
+            </section>
+
+            <section class="step-content-pane" data-step="5" aria-labelledby="step-five-title">
+              <h3 id="step-five-title">E. Relevant health information</h3>
+              <p>These answers are optional. You do not need to share anything you are uncomfortable sharing.</p>
+              <div class="form-group">
+                <label class="form-label" for="pregnancyPossibility">Is there any possibility that you could be pregnant?</label>
+                <select class="form-select" id="pregnancyPossibility" name="pregnancyPossibility">
+                  <option value="">Choose if you wish</option><option>Yes</option><option>No</option>
+                  <option>Unsure</option><option>Prefer not to answer</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="similarSymptomsBefore">Have you experienced similar symptoms before?</label>
+                <select class="form-select" id="similarSymptomsBefore" name="similarSymptomsBefore">
+                  <option value="">Choose if you wish</option><option>Yes</option><option>No</option>
+                  <option>Not sure</option><option>Prefer not to answer</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="consultedDoctor">Have you consulted a healthcare professional about these symptoms?</label>
+                <select class="form-select" id="consultedDoctor" name="consultedDoctor">
+                  <option value="">Choose if you wish</option><option>Yes</option><option>No</option>
+                  <option>Not sure</option><option>Prefer not to answer</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="additionalInformation">Anything else you would like to share? (optional)</label>
+                <textarea class="form-textarea" id="additionalInformation" name="additionalInformation" rows="3" maxlength="2000"></textarea>
+              </div>
+            </section>
+
+            <section class="step-content-pane" data-step="6" aria-labelledby="step-six-title">
+              <h3 id="step-six-title">Review your answers</h3>
+              <p>Review these self-reported answers before submitting. You can go back to make changes.</p>
+              <div id="assessment-summary-view" class="questionnaire-summary" aria-live="polite"></div>
+              <div class="form-group">
+                <label class="form-label" for="personalNotes">Optional notes for your records</label>
+                <textarea class="form-textarea" id="personalNotes" name="personalNotes" rows="3" maxlength="2000"></textarea>
+              </div>
+            </section>
+
+            <div class="step-footer-actions">
+              <button type="button" class="btn btn-secondary" id="step-back-btn" disabled>Previous</button>
+              <div class="questionnaire-actions">
+                <button type="button" class="btn btn-secondary btn-sm" id="save-draft-btn">Save draft</button>
+                <button type="button" class="btn btn-primary" id="step-next-btn">Next</button>
+              </div>
+            </div>
+          </form>
+          <section id="assessment-results" class="questionnaire-results" aria-live="polite" hidden>
+            <h3 id="assessment-result-title"></h3>
+            <p id="assessment-result-message"></p>
+            <p id="assessment-result-action"></p>
+            <h4>Your responses (self-reported)</h4>
+            <div id="assessment-response-summary" class="questionnaire-result-responses"></div>
+            <ul id="assessment-explanations"></ul>
+            <ul id="assessment-next-steps"></ul>
+            <p id="assessment-limitations" class="questionnaire-limitations"></p>
+            <p class="questionnaire-disclaimer">This safety assessment does not diagnose a condition or rule out a medical problem. A qualified healthcare professional should review these rules before clinical deployment.</p>
+          </section>
+          <section id="questionnaire-history" class="questionnaire-history" aria-labelledby="questionnaire-history-title">
+            <h3 id="questionnaire-history-title">My Health Story — Questionnaire history</h3>
+            <p>Answers and symptoms below are self-reported. Rule-based guidance is shown separately and is not a diagnosis.</p>
+            <ol id="questionnaire-history-list"></ol>
+          </section>
+        </section>
+
+        <template id="legacy-assessment-template">
           <!-- Stepper Header -->
           <div class="step-progress-wrapper">
             <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -104,7 +411,7 @@
                 Step 1 of 5: Cycle Regularity & Length
               </span>
               <span class="badge badge-lavender" id="completion-status-badge">In Progress</span>
-            </div>
+          </div>
             <div class="step-progress-bar-bg">
               <div class="step-progress-bar-fill" id="step-progress-fill"></div>
             </div>
@@ -276,7 +583,7 @@
               </div>
             </div>
           </form>
-        </div>
+        </template>
       </main>
 
       <footer class="app-footer">
@@ -287,8 +594,6 @@
   </div>
 
   <script src="/js/api.js"></script>
-  <script type="module" src="/js/firebase-config.js"></script>
-  <script src="/js/firebase-service.js"></script>
   <script src="/js/health-assessment.js"></script>
 </body>
 </html>

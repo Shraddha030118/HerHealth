@@ -1,249 +1,406 @@
-/**
- * HerHealth AI — Health Questionnaire & Summary Controller
- */
+const TOTAL_STEPS = 6;
+const STEP_TITLES = [
+  'Cycle information',
+  'Symptoms and pain',
+  'Bleeding patterns',
+  'Mood and well-being',
+  'Relevant health information',
+  'Review your answers'
+];
 
 let currentStep = 1;
-const TOTAL_STEPS = 5;
+let previewTimer;
 
 document.addEventListener('DOMContentLoaded', async () => {
   const user = await checkAuthAndInitUI();
   if (!user) return;
 
-  setupStepperEvents();
-  await loadExistingAssessment();
+  setupQuestionnaire();
+  await Promise.all([loadExistingQuestionnaire(), loadQuestionnaireHistory()]);
 });
 
-function setupStepperEvents() {
-  const nextBtn = document.getElementById('step-next-btn');
-  const backBtn = document.getElementById('step-back-btn');
-  const draftBtn = document.getElementById('save-draft-btn');
-  const painSlider = document.getElementById('q-pain-slider');
-  const painVal = document.getElementById('q-pain-val');
-
-  painSlider?.addEventListener('input', (e) => {
-    painVal.textContent = `${e.target.value} / 10`;
+function setupQuestionnaire() {
+  document.getElementById('legacy-assessment-template')?.remove();
+  const form = document.getElementById('questionnaire-form');
+  form.querySelectorAll('h3').forEach(heading => heading.tabIndex = -1);
+  document.getElementById('step-next-btn').addEventListener('click', handleNext);
+  document.getElementById('step-back-btn').addEventListener('click', () => {
+    if (currentStep > 1) goToStep(currentStep - 1);
   });
-
-  backBtn?.addEventListener('click', () => {
-    if (currentStep > 1) {
-      goToStep(currentStep - 1);
-    }
-  });
-
-  nextBtn?.addEventListener('click', async () => {
-    if (!validateStep(currentStep)) return;
-
-    if (currentStep < TOTAL_STEPS) {
-      if (currentStep === TOTAL_STEPS - 1) {
-        // Prepare summary before step 5
-        compileSummaryPreview();
+  document.getElementById('save-draft-btn').addEventListener('click', saveDraft);
+  form.addEventListener('input', scheduleAssessmentPreview);
+  form.addEventListener('change', event => {
+    const uncertaintySelect = event.target.closest('[data-uncertainty-for]');
+    if (uncertaintySelect) {
+      const numberInput = form.elements[uncertaintySelect.dataset.uncertaintyFor];
+      if (uncertaintySelect.value) numberInput.value = '';
+      numberInput.disabled = Boolean(uncertaintySelect.value);
+    } else if (event.target.name === 'symptoms') {
+      const selected = [...form.querySelectorAll('input[name="symptoms"]:checked')];
+      const noneCheckbox = form.querySelector('input[name="symptoms"][value="none"]');
+      if (event.target.value === 'none' && event.target.checked) {
+        selected.forEach(item => {
+          if (item !== noneCheckbox) item.checked = false;
+        });
+      } else if (event.target.checked && noneCheckbox.checked) {
+        noneCheckbox.checked = false;
       }
-      goToStep(currentStep + 1);
-    } else {
-      // Final submission
-      await submitFinalAssessment();
     }
+    scheduleAssessmentPreview();
   });
+  form.addEventListener('submit', event => event.preventDefault());
+  goToStep(1);
+}
 
-  draftBtn?.addEventListener('click', async () => {
-    await saveAssessmentData('in_progress');
-    showToast('Assessment draft saved securely! 💾', 'success');
-  });
+function collectAnswers() {
+  const form = document.getElementById('questionnaire-form');
+  const answers = {};
+  for (const [key, value] of new FormData(form).entries()) {
+    if (value === '') continue;
+    if (key === 'symptoms' || key === 'painLocations') {
+      answers[key] = answers[key] || [];
+      answers[key].push(value);
+    } else {
+      answers[key] = value;
+    }
+  }
+
+  for (const select of form.querySelectorAll('[data-uncertainty-for]')) {
+    if (select.value) answers[select.dataset.uncertaintyFor] = select.value;
+  }
+  return answers;
 }
 
 function goToStep(step) {
   currentStep = step;
-
-  // Panes
-  document.querySelectorAll('.step-content-pane').forEach(p => {
-    const s = Number(p.getAttribute('data-step'));
-    p.classList.toggle('active', s === currentStep);
+  document.querySelectorAll('#questionnaire-form .step-content-pane').forEach(pane => {
+    pane.classList.toggle('active', Number(pane.dataset.step) === step);
   });
 
-  // Progress Bar
-  const fill = document.getElementById('step-progress-fill');
-  const text = document.getElementById('step-indicator-text');
-  const backBtn = document.getElementById('step-back-btn');
-  const nextBtn = document.getElementById('step-next-btn');
+  const progress = document.querySelector('[role="progressbar"]');
+  document.getElementById('step-progress-fill').style.width = `${(step / TOTAL_STEPS) * 100}%`;
+  document.getElementById('step-indicator-text').textContent =
+    `Step ${step} of ${TOTAL_STEPS}: ${STEP_TITLES[step - 1]}`;
+  progress.setAttribute('aria-valuenow', String(step));
 
-  const stepTitles = [
-    'Cycle Regularity & Length',
-    'Pain & Discomfort Severity',
-    'Symptoms & Flow Patterns',
-    'Mood, Rest & Energy',
-    'Review & Clinical Summary'
-  ];
+  const backButton = document.getElementById('step-back-btn');
+  backButton.disabled = step === 1;
+  const nextButton = document.getElementById('step-next-btn');
+  nextButton.textContent = step === TOTAL_STEPS ? 'Submit questionnaire' : 'Next';
 
-  if (fill) fill.style.width = `${(currentStep / TOTAL_STEPS) * 100}%`;
-  if (text) text.textContent = `Step ${currentStep} of ${TOTAL_STEPS}: ${stepTitles[currentStep - 1]}`;
-
-  if (backBtn) backBtn.style.visibility = currentStep === 1 ? 'hidden' : 'visible';
-  if (nextBtn) nextBtn.textContent = currentStep === TOTAL_STEPS ? '✓ Complete & Save Assessment' : 'Next Step →';
+  if (step === TOTAL_STEPS) renderReviewSummary();
+  document.querySelector(`#questionnaire-form [data-step="${step}"] h3`).focus?.();
 }
 
-function validateStep(step) {
-  if (step === 1) {
-    const len = document.getElementById('q-cycle-length').value;
-    const dur = document.getElementById('q-period-duration').value;
-    const reg = document.querySelector('input[name="cycleRegularity"]:checked');
-    if (!len || !dur || !reg) {
-      showToast('Please fill in your cycle length, duration, and regularity.', 'error');
-      return false;
-    }
-  } else if (step === 2) {
-    const interf = document.querySelector('input[name="painInterference"]:checked');
-    if (!interf) {
-      showToast('Please select how pain impacts your daily activities.', 'error');
-      return false;
-    }
-  } else if (step === 4) {
-    const mood = document.querySelector('input[name="moodPms"]:checked');
-    if (!mood) {
-      showToast('Please select an option for mood patterns.', 'error');
-      return false;
-    }
+async function handleNext() {
+  const currentPane = document.querySelector(`#questionnaire-form [data-step="${currentStep}"]`);
+  const invalid = [...currentPane.querySelectorAll('input, select, textarea')]
+    .find(control => !control.checkValidity());
+  if (invalid) {
+    invalid.reportValidity();
+    return;
   }
-  return true;
+
+  if (currentStep < TOTAL_STEPS) {
+    goToStep(currentStep + 1);
+    return;
+  }
+  await submitQuestionnaire();
 }
 
-function collectFormData() {
-  const checkedSymptoms = Array.from(document.querySelectorAll('input[name="q_sym"]:checked')).map(cb => cb.value);
-
-  return {
-    typicalCycleLength: document.getElementById('q-cycle-length')?.value || '',
-    periodDuration: document.getElementById('q-period-duration')?.value || '',
-    cycleRegularity: document.querySelector('input[name="cycleRegularity"]:checked')?.value || '',
-    painSeverity: document.getElementById('q-pain-slider')?.value || '5',
-    painInterference: document.querySelector('input[name="painInterference"]:checked')?.value || '',
-    commonSymptoms: checkedSymptoms,
-    bleedingPattern: document.getElementById('q-bleeding-pattern')?.value || '',
-    sleepQuality: document.getElementById('q-sleep')?.value || '',
-    moodPms: document.querySelector('input[name="moodPms"]:checked')?.value || '',
-    personalNotes: document.getElementById('q-personal-notes')?.value || ''
-  };
+function scheduleAssessmentPreview() {
+  window.clearTimeout(previewTimer);
+  previewTimer = window.setTimeout(updateAssessmentPreview, 180);
 }
 
-async function saveAssessmentData(status = 'in_progress') {
-  const answers = collectFormData();
+async function updateAssessmentPreview() {
+  const warning = document.getElementById('urgent-warning');
   try {
-    const res = await apiFetch('/api/assessments', {
+    const response = await apiFetch('/api/questionnaires/preview', {
+      method: 'POST',
+      body: { answers: collectAnswers() }
+    });
+    renderUrgentWarning(response.assessment);
+  } catch (error) {
+    warning.hidden = false;
+    warning.className = 'questionnaire-warning questionnaire-warning-error';
+    warning.textContent = 'The safety check could not be completed. If you have severe or rapidly worsening symptoms, fainting, heavy bleeding, or difficulty breathing, seek urgent medical care now.';
+    console.error('Questionnaire safety preview failed:', error.message);
+  }
+}
+
+function renderUrgentWarning(assessment) {
+  const warning = document.getElementById('urgent-warning');
+  if (!assessment || assessment.level < 3) {
+    warning.hidden = true;
+    warning.textContent = '';
+    return;
+  }
+  warning.hidden = false;
+  warning.className = `questionnaire-warning questionnaire-warning-level-${assessment.level}`;
+  warning.textContent = `${assessment.title}. ${assessment.urgencyStatement}`;
+}
+
+async function saveDraft() {
+  const button = document.getElementById('save-draft-btn');
+  button.disabled = true;
+  try {
+    await apiFetch('/api/questionnaires/draft', {
+      method: 'POST',
+      body: { answers: collectAnswers(), currentStep }
+    });
+    document.getElementById('completion-status-badge').textContent = 'Draft saved';
+    showToast('Your questionnaire draft was saved.', 'success');
+  } catch (error) {
+    showToast(`Could not save your draft: ${error.message}`, 'error');
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function submitQuestionnaire() {
+  const button = document.getElementById('step-next-btn');
+  button.disabled = true;
+  try {
+    const response = await apiFetch('/api/questionnaires', {
       method: 'POST',
       body: {
-        answers,
-        completionStatus: status,
-        currentStep
+        answers: collectAnswers(),
+        currentStep,
+        completionStatus: 'completed'
       }
     });
-
-    // Sync to Cloud Firestore
-    if (window.HerHealthFirebaseService) {
-      window.HerHealthFirebaseService.firestoreSaveAssessment(answers, status);
-    }
-
-    return res;
-  } catch (err) {
-    showToast('Failed to save assessment: ' + err.message, 'error');
-    throw err;
-  }
-}
-
-async function submitFinalAssessment() {
-  const nextBtn = document.getElementById('step-next-btn');
-  nextBtn.disabled = true;
-
-  try {
-    const res = await saveAssessmentData('completed');
-    const badge = document.getElementById('completion-status-badge');
-    if (badge) {
-      badge.textContent = 'Completed';
-      badge.className = 'badge badge-low';
-    }
-    showToast('Health assessment completed & saved! 🌸', 'success');
-  } catch (err) {
-    showToast(err.message, 'error');
+    const assessment = response.assessment;
+    document.getElementById('completion-status-badge').textContent = 'Submitted';
+    renderUrgentWarning(assessment);
+    renderAssessmentResults(assessment);
+    await loadQuestionnaireHistory();
+    showToast('Your questionnaire was submitted and assessed.', 'success');
+  } catch (error) {
+    showToast(`Could not submit your questionnaire: ${error.message}`, 'error');
   } finally {
-    nextBtn.disabled = false;
+    button.disabled = false;
   }
 }
 
-function compileSummaryPreview() {
-  const answers = collectFormData();
-  const summaryBox = document.getElementById('assessment-summary-view');
-  if (!summaryBox) return;
+function renderReviewSummary() {
+  const answers = collectAnswers();
+  const summary = document.getElementById('assessment-summary-view');
+  const labels = {
+    lastPeriodStart: 'Last period start',
+    periodDuration: 'Usual period duration (days)',
+    cycleLength: 'Usual cycle length (days)',
+    cycleRegularity: 'Cycle regularity',
+    missedPeriod: 'Unexpected missed period',
+    recentCycleChanges: 'Recent cycle changes',
+    experiencesPain: 'Menstrual pain or cramps',
+    painLevel: 'Pain rating',
+    painLocations: 'Pain locations',
+    symptoms: 'Symptoms',
+    symptomTiming: 'Symptom timing',
+    interferesWithDailyActivities: 'Effect on daily activities',
+    symptomProgression: 'Symptom changes',
+    flowDescription: 'Menstrual flow',
+    productChangeFrequency: 'Product change frequency',
+    floodingOrClots: 'Flooding, leakage, or clots',
+    bleedingBetweenPeriods: 'Bleeding between periods',
+    prolongedBleeding: 'Prolonged bleeding',
+    bleedingWithDizzinessOrSeverePain: 'Bleeding with dizziness or severe pain',
+    faintingOrCollapse: 'Fainting or collapse',
+    isTypicalBleeding: 'Usual bleeding pattern',
+    moodDescription: 'Mood',
+    emotionalChanges: 'Emotional changes',
+    sleepQuality: 'Sleep',
+    energyLevel: 'Energy',
+    wellbeingInterference: 'Well-being impact',
+    pregnancyPossibility: 'Pregnancy possibility',
+    similarSymptomsBefore: 'Similar symptoms before',
+    consultedDoctor: 'Consulted a professional',
+    otherSymptoms: 'Other symptoms',
+    painLocationOther: 'Other pain location',
+    additionalInformation: 'Additional information',
+    personalNotes: 'Personal notes'
+  };
 
-  const symList = answers.commonSymptoms.length > 0 ? answers.commonSymptoms.join(', ') : 'None selected';
-
-  summaryBox.innerHTML = `
-    <h4 style="font-size:1.05rem; margin-bottom:12px; color:var(--primary-700);">Synthesized Profile Overview</h4>
-    <div style="font-size:0.9rem; line-height:1.7;">
-      <div>• <strong>Cycle Interval:</strong> ${answers.typicalCycleLength || '--'} days (${escapeHtml(answers.cycleRegularity)})</div>
-      <div>• <strong>Bleeding Duration:</strong> ${answers.periodDuration || '--'} days</div>
-      <div>• <strong>Pain Rating:</strong> ${answers.painSeverity}/10 — <em>${escapeHtml(answers.painInterference)}</em></div>
-      <div>• <strong>Recurring Symptoms:</strong> ${escapeHtml(symList)}</div>
-      <div>• <strong>Bleeding Characteristic:</strong> ${escapeHtml(answers.bleedingPattern)}</div>
-      <div>• <strong>Sleep Pattern:</strong> ${escapeHtml(answers.sleepQuality)}</div>
-      <div>• <strong>Luteal / PMS Mood:</strong> ${escapeHtml(answers.moodPms)}</div>
-    </div>
-    <div style="margin-top:14px; font-size:0.78rem; color:var(--text-light); border-top:1px solid var(--border-color); padding-top:8px;">
-      ℹ️ This questionnaire summary is organized for your personal records and to bring to doctor appointments. It is not an automated medical diagnosis.
-    </div>
-  `;
+  const list = document.createElement('dl');
+  Object.entries(labels).forEach(([field, label]) => {
+    if (answers[field] === undefined) return;
+    const term = document.createElement('dt');
+    term.textContent = label;
+    const description = document.createElement('dd');
+    description.textContent = Array.isArray(answers[field])
+      ? answers[field].map(value => field === 'symptoms' ? formatSymptomName(value) : value).join(', ')
+      : answers[field];
+    list.append(term, description);
+  });
+  if (list.childElementCount === 0) {
+    const note = document.createElement('p');
+    note.textContent = 'No answers entered. You can still submit, but the assessment will have limited information.';
+    list.appendChild(note);
+  }
+  summary.replaceChildren(list);
 }
 
-async function loadExistingAssessment() {
+function renderAssessmentResults(assessment) {
+  const results = document.getElementById('assessment-results');
+  results.hidden = false;
+  results.dataset.level = String(assessment.level);
+  renderReviewSummary();
+  document.getElementById('assessment-response-summary').replaceChildren(
+    document.getElementById('assessment-summary-view').cloneNode(true)
+  );
+  document.getElementById('assessment-result-title').textContent =
+    `${assessment.icon} ${assessment.title}`;
+  document.getElementById('assessment-result-message').textContent = assessment.bannerText;
+  document.getElementById('assessment-result-action').textContent =
+    `${assessment.actionHeader}. ${assessment.urgencyStatement}`;
+
+  renderList('assessment-explanations', 'What informed this assessment', assessment.explanations);
+  renderList('assessment-next-steps', 'Recommended next steps', assessment.recommendedNextSteps);
+  document.getElementById('assessment-limitations').textContent =
+    assessment.limitations && assessment.limitations.length
+      ? `Assessment limitations: ${assessment.limitations.join(' ')}`
+      : '';
+  results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderList(id, heading, values) {
+  const list = document.getElementById(id);
+  list.replaceChildren();
+  const label = document.createElement('li');
+  label.className = 'questionnaire-list-heading';
+  label.textContent = heading;
+  list.appendChild(label);
+  (values || []).forEach(value => {
+    const item = document.createElement('li');
+    item.textContent = value;
+    list.appendChild(item);
+  });
+}
+
+async function loadExistingQuestionnaire() {
   try {
-    const data = await apiFetch('/api/assessments');
-    if (!data.assessment || !data.assessment.answers) return;
-
-    const a = data.assessment.answers;
-    if (a.typicalCycleLength) document.getElementById('q-cycle-length').value = a.typicalCycleLength;
-    if (a.periodDuration) document.getElementById('q-period-duration').value = a.periodDuration;
-
-    if (a.cycleRegularity) {
-      const radio = document.querySelector(`input[name="cycleRegularity"][value="${a.cycleRegularity}"]`);
-      if (radio) radio.checked = true;
+    const response = await apiFetch('/api/questionnaires/latest');
+    const submission = response.submission;
+    if (!submission) {
+      scheduleAssessmentPreview();
+      return;
     }
 
-    if (a.painSeverity !== undefined) {
-      const slider = document.getElementById('q-pain-slider');
-      const val = document.getElementById('q-pain-val');
-      if (slider) slider.value = a.painSeverity;
-      if (val) val.textContent = `${a.painSeverity} / 10`;
+    populateAnswers(submission.answers || {});
+    if (submission.completionStatus === 'completed') {
+      document.getElementById('completion-status-badge').textContent = 'Previously submitted';
+      const assessment = response.assessment;
+      renderUrgentWarning(assessment);
+      renderReviewSummary();
+      renderAssessmentResults(assessment);
+      return;
     }
 
-    if (a.painInterference) {
-      const radio = document.querySelector(`input[name="painInterference"][value="${a.painInterference}"]`);
-      if (radio) radio.checked = true;
-    }
-
-    if (a.commonSymptoms && Array.isArray(a.commonSymptoms)) {
-      a.commonSymptoms.forEach(sym => {
-        const cb = document.querySelector(`input[name="q_sym"][value="${sym}"]`);
-        if (cb) cb.checked = true;
-      });
-    }
-
-    if (a.bleedingPattern) document.getElementById('q-bleeding-pattern').value = a.bleedingPattern;
-    if (a.sleepQuality) document.getElementById('q-sleep').value = a.sleepQuality;
-
-    if (a.moodPms) {
-      const radio = document.querySelector(`input[name="moodPms"][value="${a.moodPms}"]`);
-      if (radio) radio.checked = true;
-    }
-
-    if (a.personalNotes) document.getElementById('q-personal-notes').value = a.personalNotes;
-
-    const badge = document.getElementById('completion-status-badge');
-    if (data.assessment.completionStatus === 'completed') {
-      badge.textContent = 'Completed';
-      badge.className = 'badge badge-low';
-    }
-
-    // Resume saved step
-    if (data.assessment.currentStep && data.assessment.currentStep > 1) {
-      goToStep(data.assessment.currentStep);
-    }
-  } catch (err) {
-    console.error('Error loading existing assessment:', err);
+    document.getElementById('completion-status-badge').textContent = 'Draft in progress';
+    goToStep(Math.min(Math.max(Number(submission.currentStep) || 1, 1), TOTAL_STEPS));
+    scheduleAssessmentPreview();
+  } catch (error) {
+    showToast(`Could not load your saved questionnaire: ${error.message}`, 'error');
   }
+}
+
+async function loadQuestionnaireHistory() {
+  try {
+    const response = await apiFetch('/api/questionnaires/history');
+    renderQuestionnaireHistory(response.history || []);
+  } catch (error) {
+    showToast(`Could not load questionnaire history: ${error.message}`, 'error');
+  }
+}
+
+function renderQuestionnaireHistory(history) {
+  const list = document.getElementById('questionnaire-history-list');
+  list.replaceChildren();
+  if (!history.length) {
+    const empty = document.createElement('li');
+    empty.textContent = 'No completed questionnaire submissions yet.';
+    list.appendChild(empty);
+    return;
+  }
+
+  history.forEach((submission, index) => {
+    const item = document.createElement('li');
+    const answers = submission.answers || {};
+    const date = new Date(submission.submittedAt || submission.createdAt);
+    const heading = document.createElement('h4');
+    heading.textContent = `Completed ${date.toLocaleDateString()}`;
+    const reported = document.createElement('p');
+    const symptomNames = Array.isArray(answers.symptoms)
+      ? answers.symptoms.map(formatSymptomName).join(', ')
+      : '';
+    const pain = Number.isInteger(answers.painLevel) ? `${answers.painLevel}/10` : 'Not provided';
+    reported.textContent = `Reported by you — symptoms: ${symptomNames || 'none selected or not provided'}; pain: ${pain}; flow: ${answers.flowDescription || 'not provided'}.`;
+    const guidance = document.createElement('p');
+    guidance.textContent = `System-generated guidance — ${submission.assessment?.levelName || 'not available'}; this is not a diagnosis.`;
+    item.append(heading, reported, guidance);
+
+    const older = history[index + 1];
+    if (older) {
+      const previousAnswers = older.answers || {};
+      const changes = [];
+      if (Number.isInteger(answers.painLevel) && Number.isInteger(previousAnswers.painLevel) && answers.painLevel !== previousAnswers.painLevel) {
+        changes.push(`reported pain changed from ${previousAnswers.painLevel}/10 to ${answers.painLevel}/10`);
+      }
+      if (answers.flowDescription && previousAnswers.flowDescription && answers.flowDescription !== previousAnswers.flowDescription) {
+        changes.push(`reported flow changed from ${previousAnswers.flowDescription} to ${answers.flowDescription}`);
+      }
+      if (changes.length) {
+        const changeNote = document.createElement('p');
+        changeNote.textContent = `Change since previous questionnaire: ${changes.join('; ')}.`;
+        item.appendChild(changeNote);
+      }
+    }
+    list.appendChild(item);
+  });
+}
+
+function formatSymptomName(symptom) {
+  const labels = {
+    cramps: 'Abdominal cramps',
+    severe_pelvic_pain: 'Severe abdominal or pelvic pain',
+    back_pain: 'Back pain',
+    headache: 'Headache',
+    nausea_vomiting: 'Nausea or vomiting',
+    dizziness_fainting: 'Dizziness or fainting',
+    fatigue_weakness: 'Unusual fatigue or weakness',
+    bloating: 'Bloating',
+    fever: 'Fever',
+    breathlessness: 'Severe difficulty breathing',
+    confusion: 'Confusion',
+    breast_tenderness: 'Breast tenderness',
+    other: 'Other symptoms',
+    none: 'None of these'
+  };
+  return labels[symptom] || symptom;
+}
+
+function populateAnswers(answers) {
+  const form = document.getElementById('questionnaire-form');
+  Object.entries(answers).forEach(([name, value]) => {
+    if (value === undefined || value === null) return;
+    if (Array.isArray(value)) {
+      value.forEach(item => {
+        const control = [...form.querySelectorAll(`[name="${name}"]`)]
+          .find(candidate => candidate.value === String(item));
+        if (control) control.checked = true;
+      });
+      return;
+    }
+    const control = form.elements[name];
+    if (!control) return;
+
+    const uncertainty = form.querySelector(`[data-uncertainty-for="${name}"]`);
+    if (uncertainty && typeof value === 'string' && !/^\d+$/.test(value)) {
+      uncertainty.value = value;
+      control.disabled = true;
+    } else {
+      control.value = value;
+    }
+  });
 }

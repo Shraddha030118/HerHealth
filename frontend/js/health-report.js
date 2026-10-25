@@ -121,11 +121,13 @@ function renderReport(report) {
     });
   }
 
+  renderQuestionnaireSummary(report.questionnaireSummary);
+
   // Alerts
   const alertsCont = document.getElementById('rep-alerts-container');
   alertsCont.innerHTML = '';
   if (report.recentAlerts.length === 0) {
-    alertsCont.innerHTML = '<div style="color:#2e7d32;">✓ No red-flag health alerts flagged during this period.</div>';
+    alertsCont.textContent = 'No separate symptom-log alerts are recorded. See the questionnaire summary above for its rule-based guidance.';
   } else {
     report.recentAlerts.forEach(al => {
       const box = document.createElement('div');
@@ -151,4 +153,75 @@ function renderReport(report) {
   // Personal Notes
   const notesEl = document.getElementById('rep-patient-notes-display');
   notesEl.textContent = report.patientNotes || 'None provided.';
+}
+
+function renderQuestionnaireSummary(summary) {
+  const section = document.getElementById('rep-questionnaire-section');
+  const details = document.getElementById('rep-questionnaire-details');
+  const trendList = document.getElementById('rep-questionnaire-trends');
+  const trendsTitle = document.getElementById('rep-questionnaire-trends-title');
+  details.replaceChildren();
+  trendList.replaceChildren();
+
+  if (!summary || !summary.latest) {
+    section.hidden = true;
+    return;
+  }
+
+  section.hidden = false;
+  const latest = summary.latest;
+  document.getElementById('rep-questionnaire-date').textContent =
+    `Latest completed questionnaire: ${new Date(latest.submittedAt).toLocaleDateString()} (${summary.submissionCount} completed submission${summary.submissionCount === 1 ? '' : 's'}).`;
+
+  const entries = [
+    ['Cycle information', `Last period: ${latest.cycle.lastPeriodStart || 'Not provided'}; usual cycle: ${latest.cycle.cycleLength === null ? 'Not provided' : `${latest.cycle.cycleLength} days`}; usual period: ${latest.cycle.periodDuration === null ? 'Not provided' : `${latest.cycle.periodDuration} days`}; regularity: ${latest.cycle.regularity || 'Not provided'}`],
+    ['Reported symptoms', latest.symptoms.length ? latest.symptoms.map(formatQuestionnaireSymptom).join(', ') : 'None selected or not provided'],
+    ['Reported pain', latest.painLevel === null ? 'Not provided' : `${latest.painLevel}/10`],
+    ['Reported bleeding', `Flow: ${latest.bleeding.flow || 'Not provided'}; product changes: ${latest.bleeding.productChangeFrequency || 'Not provided'}; flooding/clots: ${latest.bleeding.floodingOrClots || 'Not provided'}; between periods: ${latest.bleeding.betweenPeriods || 'Not provided'}`],
+    ['Guidance level', latest.assessment ? `${latest.assessment.levelName} (not a diagnosis)` : 'Not available']
+  ];
+  entries.forEach(([label, value]) => {
+    const term = document.createElement('dt');
+    term.textContent = label;
+    const description = document.createElement('dd');
+    description.textContent = value;
+    details.append(term, description);
+  });
+
+  const trendItems = [];
+  if (summary.painTrend.length >= 2) {
+    trendItems.push(`Reported pain across questionnaire submissions: ${summary.painTrend
+      .map(item => `${new Date(item.date).toLocaleDateString()} — ${item.painLevel}/10`)
+      .join('; ')}`);
+  }
+  (summary.reportedBleedingChanges || []).forEach(change => {
+    trendItems.push(`${new Date(change.date).toLocaleDateString()}: reported ${change.field} changed from "${change.from}" to "${change.to}".`);
+  });
+  trendsTitle.hidden = trendItems.length === 0;
+  trendItems.forEach(text => {
+    const item = document.createElement('li');
+    item.textContent = text;
+    trendList.appendChild(item);
+  });
+  document.getElementById('rep-questionnaire-guidance').textContent = summary.guidanceNotice;
+}
+
+function formatQuestionnaireSymptom(symptom) {
+  const labels = {
+    cramps: 'Abdominal cramps',
+    severe_pelvic_pain: 'Severe abdominal or pelvic pain',
+    back_pain: 'Back pain',
+    headache: 'Headache',
+    nausea_vomiting: 'Nausea or vomiting',
+    dizziness_fainting: 'Dizziness or fainting',
+    fatigue_weakness: 'Unusual fatigue or weakness',
+    bloating: 'Bloating',
+    fever: 'Fever',
+    breathlessness: 'Severe difficulty breathing',
+    confusion: 'Confusion',
+    breast_tenderness: 'Breast tenderness',
+    other: 'Other symptoms',
+    none: 'None of these'
+  };
+  return labels[symptom] || symptom;
 }

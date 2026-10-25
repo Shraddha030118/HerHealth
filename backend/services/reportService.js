@@ -1,11 +1,96 @@
 const PDFDocument = require('pdfkit');
+const QUESTIONNAIRE_SYMPTOM_LABELS = {
+  cramps: 'Abdominal cramps',
+  severe_pelvic_pain: 'Severe abdominal or pelvic pain',
+  back_pain: 'Back pain',
+  headache: 'Headache',
+  nausea_vomiting: 'Nausea or vomiting',
+  dizziness_fainting: 'Dizziness or fainting',
+  fatigue_weakness: 'Unusual fatigue or weakness',
+  bloating: 'Bloating',
+  fever: 'Fever',
+  breathlessness: 'Severe difficulty breathing',
+  confusion: 'Confusion',
+  breast_tenderness: 'Breast tenderness',
+  other: 'Other symptoms',
+  none: 'None of these'
+};
 
 /**
  * Report Service
  * Compiles patient health metrics and generates downloadable doctor-ready PDF reports.
  */
 
-function generateReportData({ user, periods = [], symptoms = [], cycleMetrics = {}, alerts = [], options = {} }) {
+function getQuestionnaireSummary(history) {
+  const optionalAnswer = value => value === '' || value === undefined ? null : value;
+  const entries = history
+    .filter(item => item && item.completionStatus === 'completed')
+    .map(item => {
+      const answers = item.answers || {};
+      return {
+        submittedAt: item.submittedAt || item.createdAt,
+        cycle: {
+          lastPeriodStart: optionalAnswer(answers.lastPeriodStart),
+          cycleLength: optionalAnswer(answers.cycleLength),
+          periodDuration: optionalAnswer(answers.periodDuration),
+          regularity: optionalAnswer(answers.cycleRegularity),
+          recentChangesReported: optionalAnswer(answers.recentCycleChanges)
+        },
+        symptoms: Array.isArray(answers.symptoms)
+          ? answers.symptoms.map(symptom => QUESTIONNAIRE_SYMPTOM_LABELS[symptom] || symptom)
+          : [],
+        painLevel: Number.isInteger(answers.painLevel) ? answers.painLevel : null,
+        bleeding: {
+          flow: answers.flowDescription || null,
+          productChangeFrequency: answers.productChangeFrequency || null,
+          floodingOrClots: answers.floodingOrClots || null,
+          betweenPeriods: answers.bleedingBetweenPeriods || null,
+          prolonged: answers.prolongedBleeding || null,
+          patternTypicality: answers.isTypicalBleeding || null
+        },
+        assessment: item.assessment ? {
+          level: item.assessment.level,
+          levelName: item.assessment.levelName
+        } : null
+      };
+    })
+    .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
+
+  const ordered = entries.slice().reverse();
+  const reportedBleedingChanges = [];
+  for (let index = 1; index < ordered.length; index += 1) {
+    const previous = ordered[index - 1];
+    const current = ordered[index];
+    ['flow', 'productChangeFrequency', 'floodingOrClots', 'betweenPeriods', 'prolonged'].forEach(field => {
+      const from = previous.bleeding[field];
+      const to = current.bleeding[field];
+      if (from && to && from !== to) {
+        reportedBleedingChanges.push({
+          date: current.submittedAt,
+          field,
+          from,
+          to
+        });
+      }
+    });
+  }
+
+  const painEntries = entries.filter(item => item.painLevel !== null);
+  return {
+    submissionCount: entries.length,
+    latest: entries[0] || null,
+    painTrend: painEntries.length >= 2
+      ? painEntries.slice().reverse().map(item => ({
+        date: item.submittedAt,
+        painLevel: item.painLevel
+      }))
+      : [],
+    reportedBleedingChanges,
+    guidanceNotice: 'Questionnaire responses and the rule-based guidance level are self-reported support information, not a diagnosis.'
+  };
+}
+
+function generateReportData({ user, periods = [], symptoms = [], cycleMetrics = {}, alerts = [], questionnaireHistory = [], questionnaire, options = {} }) {
   const startDate = options.startDate ? new Date(options.startDate) : null;
   const endDate = options.endDate ? new Date(options.endDate) : null;
 
@@ -47,6 +132,15 @@ function generateReportData({ user, periods = [], symptoms = [], cycleMetrics = 
   const topSymptoms = Object.entries(symptomCounts)
     .sort((a, b) => b[1] - a[1])
     .map(([name, count]) => ({ name, count }));
+  const questionnaireRecords = questionnaireHistory.length
+    ? questionnaireHistory
+    : questionnaire ? [questionnaire] : [];
+  const questionnaireSummary = getQuestionnaireSummary(questionnaireRecords.filter(item => {
+    const submittedAt = new Date(item.submittedAt || item.createdAt);
+    if (startDate && submittedAt < startDate) return false;
+    if (endDate && submittedAt > endDate) return false;
+    return true;
+  }));
 
   // Recommended questions for doctor
   const suggestedQuestions = [
@@ -83,6 +177,7 @@ function generateReportData({ user, periods = [], symptoms = [], cycleMetrics = 
       peakPainScore: maxPain,
       topSymptoms
     },
+    questionnaireSummary,
     periods: filteredPeriods.map(p => ({
       startDate: p.startDate,
       endDate: p.endDate,
@@ -194,7 +289,47 @@ function buildPDFReport(reportData, writeStream) {
       }
       y += 15;
 
-      // Section 4: Flagged Alerts & Discussion Points
+      if (reportData.questionnaireSummary.latest) {
+        if (y > 640) {
+          doc.addPage();
+          y = 50;
+        }
+        const summary = reportData.questionnaireSummary;
+        const latest = summary.latest;
+        doc.fillColor('#2D1A47').fontSize(13).font('Helvetica-Bold').text('4. Health Questionnaire Summary', 40, y);
+        y += 18;
+        doc.fontSize(9).font('Helvetica').fillColor('#4A4A4A');
+        doc.text(`Completed: ${new Date(latest.submittedAt).toLocaleDateString()} | Completed questionnaires: ${summary.submissionCount}`, 40, y);
+        y += 14;
+        doc.text(`Reported cycle: ${latest.cycle.cycleLength ?? 'Not provided'} days; period duration: ${latest.cycle.periodDuration ?? 'Not provided'} days; regularity: ${latest.cycle.regularity ?? 'Not provided'}`, 40, y, { width: 515 });
+        y = doc.y + 4;
+        doc.text(`Reported symptoms: ${latest.symptoms.length ? latest.symptoms.join(', ') : 'None selected or not provided'} | Pain: ${latest.painLevel === null ? 'Not provided' : `${latest.painLevel}/10`}`, 40, y, { width: 515 });
+        y = doc.y + 4;
+        doc.text(`Reported bleeding: ${latest.bleeding.flow || 'Not provided'}; changes: ${latest.bleeding.patternTypicality || 'Not provided'}; between periods: ${latest.bleeding.betweenPeriods || 'Not provided'}`, 40, y, { width: 515 });
+        y = doc.y + 4;
+        if (summary.painTrend.length >= 2) {
+          const painTrend = summary.painTrend.slice(-6)
+            .map(item => `${new Date(item.date).toLocaleDateString()}: ${item.painLevel}/10`)
+            .join('; ');
+          doc.text(`Reported pain trend: ${painTrend}`, 40, y, { width: 515 });
+          y = doc.y + 4;
+        }
+        if (summary.reportedBleedingChanges.length) {
+          const changeText = summary.reportedBleedingChanges.slice(-3)
+            .map(change => `${change.field}: ${change.from} → ${change.to}`)
+            .join('; ');
+          doc.text(`Reported bleeding changes across submissions: ${changeText}`, 40, y, { width: 515 });
+          y = doc.y + 4;
+        }
+        if (latest.assessment) {
+          doc.text(`Questionnaire guidance level: ${latest.assessment.levelName} (not a diagnosis).`, 40, y, { width: 515 });
+          y = doc.y + 4;
+        }
+        doc.fontSize(8).fillColor('#777777').text(summary.guidanceNotice, 40, y, { width: 515 });
+        y = doc.y + 16;
+      }
+
+      // Section 5: Flagged Alerts & Discussion Points
       if (reportData.recentAlerts.length > 0) {
         doc.fillColor('#D81B60').fontSize(13).font('Helvetica-Bold').text('4. Notable Health Observations / Alerts', 40, y);
         y += 16;

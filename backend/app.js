@@ -53,20 +53,23 @@ const allowedOrigins = [
   'http://localhost:3000'
 ];
 
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(null, true); // Permissive in dev mode to prevent frontend CORS blocking
-      }
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-  })
-);
+const corsMiddleware = cors({
+  origin: (origin, callback) => callback(null, !origin || allowedOrigins.includes(origin)),
+  credentials: true,
+  methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+});
+
+app.use((req, res, next) => {
+  const origin = req.get('Origin');
+  if (origin && !allowedOrigins.includes(origin)) {
+    return res.status(403).json({
+      success: false,
+      error: 'Origin is not allowed by the CORS policy.'
+    });
+  }
+  return corsMiddleware(req, res, next);
+});
 
 // Body parsers
 app.use(express.json({ limit: '10mb' }));
@@ -106,6 +109,7 @@ app.use('/api/alerts', healthAlertRoutes);
 app.use('/api/wellness', wellnessRoutes);
 app.use('/api/nutrition', nutritionRoutes);
 app.use('/api/assessments', assessmentRoutes);
+app.use('/api/questionnaires', assessmentRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/notifications', notificationRoutes);
 

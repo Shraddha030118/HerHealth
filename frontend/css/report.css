@@ -72,6 +72,27 @@
   color: #666;
 }
 
+.report-questionnaire-details {
+  display: grid;
+  grid-template-columns: minmax(140px, 0.8fr) 2fr;
+  gap: 8px 14px;
+  line-height: 1.55;
+}
+
+.report-questionnaire-details dt {
+  font-weight: 700;
+}
+
+.report-questionnaire-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.report-questionnaire-note {
+  color: #555;
+  font-size: 0.85rem;
+}
+
 @media print {
   body {
     background: #ffffff !important;
@@ -87,5 +108,8 @@
     box-shadow: none !important;
     padding: 0 !important;
     max-width: 100% !important;
+  }
+  .report-questionnaire-details {
+    break-inside: avoid;
   }
 }

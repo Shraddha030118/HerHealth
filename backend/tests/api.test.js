@@ -28,6 +28,7 @@ test.after(async () => {
 test('HerHealth AI Backend Comprehensive Test Suite', async (t) => {
   const agent = request.agent(app);
   let createdPeriodId = null;
+  let questionnaireId = null;
   const testUser = {
     name: 'Aria Sharma',
     email: `aria_${Date.now()}@example.com`,
@@ -69,6 +70,14 @@ test('HerHealth AI Backend Comprehensive Test Suite', async (t) => {
     const res = await unauthAgent.get('/api/periods');
     assert.strictEqual(res.status, 401);
     assert.strictEqual(res.body.success, false);
+  });
+
+  await t.test('4a. Should reject unconfigured cross-origin requests', async () => {
+    const res = await request(app)
+      .get('/api/health')
+      .set('Origin', 'https://untrusted.example');
+    assert.strictEqual(res.status, 403);
+    assert.match(res.body.error, /CORS policy/i);
   });
 
   await t.test('5. Should create a valid menstrual period record and compute cycle metrics', async () => {
@@ -150,26 +159,67 @@ test('HerHealth AI Backend Comprehensive Test Suite', async (t) => {
   });
 
   await t.test('10. Should save and retrieve health questionnaire responses', async () => {
+    const draft = await agent
+      .post('/api/questionnaires/draft')
+      .send({
+        answers: { cycleLength: 29, symptoms: [] },
+        currentStep: 2
+      });
+    assert.strictEqual(draft.status, 200);
+    assert.strictEqual(draft.body.draft.completionStatus, 'in_progress');
+
+    const latestDraft = await agent.get('/api/questionnaires/latest');
+    assert.strictEqual(latestDraft.body.submission.currentStep, 2);
+    assert.strictEqual((await agent.get('/api/questionnaires/history')).body.count, 0);
+
     const assessmentPayload = {
       answers: {
-        typicalCycleLength: 29,
+        cycleLength: 29,
         periodDuration: 5,
-        painSeverity: 6,
-        commonSymptoms: ['cramps', 'bloating'],
-        bleedingPattern: 'Moderate flow with occasional clotting'
+        painLevel: 6,
+        symptoms: ['cramps', 'bloating'],
+        flowDescription: 'Moderate',
+        pregnancyPossibility: 'No'
       },
       completionStatus: 'completed',
-      currentStep: 6
+      currentStep: 6,
+      assessment: { level: 4 }
     };
 
     const res = await agent
-      .post('/api/assessments')
+      .post('/api/questionnaires')
       .send(assessmentPayload);
 
-    assert.strictEqual(res.status, 200);
+    assert.strictEqual(res.status, 201);
     assert.strictEqual(res.body.success, true);
-    assert.strictEqual(res.body.assessment.completionStatus, 'completed');
+    assert.strictEqual(res.body.submission.completionStatus, 'completed');
+    assert.strictEqual(res.body.assessment.level, 2, 'Client-supplied urgency must not override server assessment');
+    questionnaireId = res.body.submission._id;
+    assert.strictEqual(questionnaireId, draft.body.draft._id, 'Completing a draft should finalize the same record');
     assert.ok(res.body.summary.observations.length > 0);
+
+    const history = await agent.get('/api/questionnaires/history');
+    assert.strictEqual(history.body.count, 1);
+    assert.strictEqual(history.body.history[0]._id, questionnaireId);
+  });
+
+  await t.test('10a. Should validate questionnaire answers and provide a non-persisting safety preview', async () => {
+    const invalid = await agent
+      .post('/api/questionnaires/preview')
+      .send({ answers: { painLevel: 11 } });
+    assert.strictEqual(invalid.status, 400);
+
+    const preview = await agent
+      .post('/api/questionnaires/preview')
+      .send({ answers: { symptoms: [], pregnancyPossibility: 'No' }, assessment: { level: 4 } });
+    assert.strictEqual(preview.status, 200);
+    assert.strictEqual(preview.body.assessment.level, 1);
+
+    const urgentPreview = await agent
+      .post('/api/questionnaires/preview')
+      .send({ answers: { painLevel: 8, symptoms: ['severe_pelvic_pain'] } });
+    assert.strictEqual(urgentPreview.body.assessment.level, 3);
+    assert.strictEqual((await agent.get('/api/questionnaires/history')).body.count, 1, 'A safety preview must not persist a submission');
   });
 
   await t.test('11. Should generate report preview JSON with verified real user data', async () => {
@@ -182,6 +232,7 @@ test('HerHealth AI Backend Comprehensive Test Suite', async (t) => {
     assert.strictEqual(res.body.report.patient.name, testUser.name);
     assert.ok(res.body.report.periods.length >= 1);
     assert.ok(res.body.report.suggestedQuestions.length >= 3);
+    assert.strictEqual(res.body.report.questionnaireSummary.latest.assessment.levelName, 'Schedule a Medical Consultation');
   });
 
   await t.test('12. Should download doctor-ready PDF report', async () => {
@@ -229,5 +280,11 @@ test('HerHealth AI Backend Comprehensive Test Suite', async (t) => {
     // User B tries to delete User A's period
     const delRes = await userB_Agent.delete(`/api/periods/${createdPeriodId}`);
     assert.strictEqual(delRes.status, 404, 'User B must not be able to delete User A record');
+
+    const questionnaireRes = await userB_Agent.get(`/api/questionnaires/${questionnaireId}`);
+    assert.strictEqual(questionnaireRes.status, 404, 'User B must not be able to retrieve User A questionnaire');
+
+    const questionnaireDeleteRes = await userB_Agent.delete(`/api/questionnaires/${questionnaireId}`);
+    assert.strictEqual(questionnaireDeleteRes.status, 404, 'User B must not be able to delete User A questionnaire');
   });
 });

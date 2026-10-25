@@ -1,6 +1,7 @@
 const PeriodRecord = require('../models/PeriodRecord');
 const SymptomLog = require('../models/SymptomLog');
 const HealthAlert = require('../models/HealthAlert');
+const QuestionnaireResponse = require('../models/QuestionnaireResponse');
 const User = require('../models/User');
 const { calculateCycleMetrics } = require('../services/cycleService');
 const { generateReportData, buildPDFReport } = require('../services/reportService');
@@ -14,6 +15,9 @@ exports.previewReport = async (req, res, next) => {
     const periods = await PeriodRecord.find({ userId }).sort({ startDate: -1 });
     const symptoms = await SymptomLog.find({ userId }).sort({ date: -1 });
     const alerts = await HealthAlert.find({ userId }).sort({ createdAt: -1 });
+    const questionnaireHistory = await QuestionnaireResponse.find({ userId, completionStatus: 'completed' })
+      .sort({ submittedAt: -1, createdAt: -1 })
+      .limit(30);
 
     const cycleMetrics = calculateCycleMetrics(periods, user);
 
@@ -23,6 +27,7 @@ exports.previewReport = async (req, res, next) => {
       symptoms,
       cycleMetrics,
       alerts,
+      questionnaireHistory,
       options: { startDate, endDate, personalNotes }
     });
 
@@ -44,6 +49,9 @@ exports.downloadPDF = async (req, res, next) => {
     const periods = await PeriodRecord.find({ userId }).sort({ startDate: -1 });
     const symptoms = await SymptomLog.find({ userId }).sort({ date: -1 });
     const alerts = await HealthAlert.find({ userId }).sort({ createdAt: -1 });
+    const questionnaireHistory = await QuestionnaireResponse.find({ userId, completionStatus: 'completed' })
+      .sort({ submittedAt: -1, createdAt: -1 })
+      .limit(30);
 
     const cycleMetrics = calculateCycleMetrics(periods, user);
 
@@ -53,6 +61,7 @@ exports.downloadPDF = async (req, res, next) => {
       symptoms,
       cycleMetrics,
       alerts,
+      questionnaireHistory,
       options: { startDate, endDate, personalNotes }
     });
 

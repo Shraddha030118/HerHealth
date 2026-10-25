@@ -1,136 +1,287 @@
 const QuestionnaireResponse = require('../models/QuestionnaireResponse');
+const {
+  evaluateQuestionnaire,
+  validateQuestionnaireAnswers
+} = require('../services/questionnaireAssessmentService');
 
-exports.saveAssessment = async (req, res, next) => {
+function getValidatedAnswers(input) {
+  const validation = validateQuestionnaireAnswers(input);
+  return validation.errors.length
+    ? { errors: validation.errors }
+    : { answers: validation.answers };
+}
+
+exports.previewAssessment = async (req, res) => {
+  const result = getValidatedAnswers(req.body.answers);
+  if (result.errors) {
+    return res.status(400).json({ success: false, errors: result.errors });
+  }
+
+  return res.status(200).json({
+    success: true,
+    assessment: evaluateQuestionnaire(result.answers)
+  });
+};
+
+/**
+ * Submit or finalize a Health Questionnaire
+ * POST /api/questionnaires or POST /api/assessments
+ */
+exports.submitQuestionnaire = async (req, res, next) => {
   try {
     const userId = req.session.userId;
-    const { answers, completionStatus = 'in_progress', currentStep = 1 } = req.body;
+    const { answers = {}, currentStep = 6, completionStatus = 'completed' } = req.body;
+    const result = getValidatedAnswers(answers);
+    if (result.errors) {
+      return res.status(400).json({ success: false, errors: result.errors });
+    }
+    if (!['completed', 'in_progress'].includes(completionStatus)) {
+      return res.status(400).json({ success: false, error: 'Invalid questionnaire completion status.' });
+    }
+    if (!Number.isInteger(Number(currentStep)) || Number(currentStep) < 1 || Number(currentStep) > 6) {
+      return res.status(400).json({ success: false, error: 'Current step must be between 1 and 6.' });
+    }
 
-    let assessment = await QuestionnaireResponse.findOne({ userId });
+    // Server-side recalculation of assessment level - NEVER trust client-supplied assessment level!
+    const assessmentResult = evaluateQuestionnaire(result.answers);
 
-    if (!assessment) {
-      assessment = new QuestionnaireResponse({
+    // Create a new submission record in history if completed, or update active draft
+    let submission;
+    if (completionStatus === 'completed') {
+      submission = await QuestionnaireResponse.findOne({ userId, completionStatus: 'in_progress' });
+      if (!submission) submission = new QuestionnaireResponse({ userId });
+      submission.answers = result.answers;
+      submission.currentStep = Number(currentStep);
+      submission.completionStatus = 'completed';
+      submission.submittedAt = new Date();
+      submission.assessment = {
+        level: assessmentResult.level,
+        levelName: assessmentResult.levelName,
+        colorCode: assessmentResult.colorCode,
+        badgeClass: assessmentResult.badgeClass,
+        icon: assessmentResult.icon,
+        title: assessmentResult.title,
+        bannerText: assessmentResult.bannerText,
+        actionHeader: assessmentResult.actionHeader,
+        urgencyStatement: assessmentResult.urgencyStatement,
+        triggeredRules: assessmentResult.triggeredRules,
+        explanations: assessmentResult.explanations,
+        recommendedNextSteps: assessmentResult.recommendedNextSteps,
+        evaluatedAt: new Date()
+      };
+      await submission.save();
+    } else {
+      // In-progress draft saving
+      submission = await QuestionnaireResponse.findOne({ userId, completionStatus: 'in_progress' });
+      if (!submission) {
+        submission = new QuestionnaireResponse({
+          userId,
+          answers,
+          currentStep: Number(currentStep) || 1,
+          completionStatus: 'in_progress'
+        });
+      } else {
+        submission.answers = { ...submission.answers, ...result.answers };
+        submission.currentStep = Number(currentStep) || submission.currentStep;
+      }
+      await submission.save();
+    }
+
+    const statusCode = completionStatus !== 'completed' || req.baseUrl === '/api/assessments' ? 200 : 201;
+    return res.status(statusCode).json({
+      success: true,
+      message: completionStatus === 'completed' ? 'Health questionnaire submitted and evaluated.' : 'Draft saved.',
+      submission,
+      assessment: assessmentResult,
+      // Backward-compatibility aliases
+      assessmentResult,
+      summary: {
+        completionDate: new Date().toLocaleDateString(),
+        level: assessmentResult.level,
+        levelName: assessmentResult.levelName,
+        observations: assessmentResult.explanations,
+        disclaimer: assessmentResult.disclaimer
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Save in-progress draft without full validation
+ * POST /api/questionnaires/draft
+ */
+exports.saveDraft = async (req, res, next) => {
+  try {
+    const userId = req.session.userId;
+    const { answers = {}, currentStep = 1 } = req.body;
+    const result = getValidatedAnswers(answers);
+    if (result.errors) {
+      return res.status(400).json({ success: false, errors: result.errors });
+    }
+    if (!Number.isInteger(Number(currentStep)) || Number(currentStep) < 1 || Number(currentStep) > 6) {
+      return res.status(400).json({ success: false, error: 'Current step must be between 1 and 6.' });
+    }
+
+    let draft = await QuestionnaireResponse.findOne({ userId, completionStatus: 'in_progress' });
+    if (!draft) {
+      draft = new QuestionnaireResponse({
         userId,
-        answers: answers || {},
-        completionStatus,
+        answers: result.answers,
         currentStep: Number(currentStep),
-        submittedAt: completionStatus === 'completed' ? new Date() : undefined
+        completionStatus: 'in_progress'
       });
     } else {
-      assessment.answers = { ...assessment.answers, ...(answers || {}) };
-      assessment.completionStatus = completionStatus;
-      assessment.currentStep = Number(currentStep);
-      if (completionStatus === 'completed') {
-        assessment.submittedAt = new Date();
-      }
+      draft.answers = { ...draft.answers, ...result.answers };
+      draft.currentStep = Number(currentStep);
     }
 
-    await assessment.save();
-
-    // Generate organized summary without diagnostic inference
-    const summary = generateSummary(assessment.answers);
+    await draft.save();
 
     return res.status(200).json({
       success: true,
-      message: completionStatus === 'completed' ? 'Health questionnaire completed.' : 'Draft saved.',
-      assessment,
-      summary
+      message: 'Draft saved successfully.',
+      draft
     });
   } catch (err) {
     next(err);
   }
 };
 
-exports.getAssessment = async (req, res, next) => {
+/**
+ * Get latest submission or draft for user
+ * GET /api/questionnaires/latest or GET /api/assessments
+ */
+exports.getLatest = async (req, res, next) => {
   try {
     const userId = req.session.userId;
-    const assessment = await QuestionnaireResponse.findOne({ userId });
+    // Get newest completed or in_progress questionnaire
+    const latest = await QuestionnaireResponse.findOne({ userId }).sort({ createdAt: -1 });
 
-    let summary = null;
-    if (assessment && assessment.answers) {
-      summary = generateSummary(assessment.answers);
+    let assessment = null;
+    if (latest && latest.answers) {
+      assessment = evaluateQuestionnaire(latest.answers);
     }
 
     return res.status(200).json({
       success: true,
+      submission: latest,
       assessment,
-      summary
+      // Backward compatibility aliases
+      assessmentData: latest,
+      summary: assessment ? {
+        completionDate: latest.submittedAt ? new Date(latest.submittedAt).toLocaleDateString() : new Date().toLocaleDateString(),
+        level: assessment.level,
+        levelName: assessment.levelName,
+        observations: assessment.explanations,
+        disclaimer: assessment.disclaimer
+      } : null
     });
   } catch (err) {
     next(err);
   }
 };
 
-exports.updateAssessmentById = async (req, res, next) => {
+/**
+ * Retrieve questionnaire history list for authenticated user
+ * GET /api/questionnaires/history
+ */
+exports.getHistory = async (req, res, next) => {
   try {
     const userId = req.session.userId;
-    const { answers, completionStatus, currentStep } = req.body;
-
-    const assessment = await QuestionnaireResponse.findOne({ _id: req.params.id, userId });
-    if (!assessment) {
-      return res.status(404).json({ success: false, error: 'Assessment not found.' });
-    }
-
-    if (answers) assessment.answers = { ...assessment.answers, ...answers };
-    if (completionStatus) {
-      assessment.completionStatus = completionStatus;
-      if (completionStatus === 'completed') assessment.submittedAt = new Date();
-    }
-    if (currentStep) assessment.currentStep = Number(currentStep);
-
-    await assessment.save();
-    const summary = generateSummary(assessment.answers);
+    const history = await QuestionnaireResponse.find({ userId, completionStatus: 'completed' })
+      .sort({ createdAt: -1 })
+      .limit(30);
 
     return res.status(200).json({
       success: true,
-      assessment,
-      summary
+      count: history.length,
+      history
     });
   } catch (err) {
     next(err);
   }
 };
 
-function generateSummary(answers = {}) {
-  // Synthesizes observations objectively without making medical diagnoses
-  const observations = [];
+/**
+ * Retrieve a specific questionnaire submission by ID
+ * GET /api/questionnaires/:id
+ */
+exports.getById = async (req, res, next) => {
+  try {
+    const userId = req.session.userId;
+    const submission = await QuestionnaireResponse.findOne({ _id: req.params.id, userId });
 
-  if (answers.typicalCycleLength) {
-    const len = Number(answers.typicalCycleLength);
-    if (len < 21) {
-      observations.push('Reported cycle length is shorter than the standard 21-day range.');
-    } else if (len > 35) {
-      observations.push('Reported cycle length is longer than the standard 35-day range.');
-    } else {
-      observations.push(`Reported cycle interval (${len} days) aligns with typical physiological patterns.`);
+    if (!submission) {
+      return res.status(404).json({
+        success: false,
+        error: 'Questionnaire submission not found.'
+      });
     }
-  }
 
-  if (answers.painSeverity !== undefined) {
-    const pain = Number(answers.painSeverity);
-    if (pain >= 7) {
-      observations.push(`Pain level is rated high (${pain}/10). You reported that discomfort interferes significantly with normal activity.`);
-    } else if (pain >= 4) {
-      observations.push(`Moderate pain level (${pain}/10) managed with rest or comfort measures.`);
-    } else {
-      observations.push(`Mild or minimal menstrual pain reported (${pain}/10).`);
+    const assessment = evaluateQuestionnaire(submission.answers);
+
+    return res.status(200).json({
+      success: true,
+      submission,
+      assessment
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Get server-generated assessment for specific submission
+ * GET /api/questionnaires/:id/assessment
+ */
+exports.getAssessmentById = async (req, res, next) => {
+  try {
+    const userId = req.session.userId;
+    const submission = await QuestionnaireResponse.findOne({ _id: req.params.id, userId });
+
+    if (!submission) {
+      return res.status(404).json({
+        success: false,
+        error: 'Questionnaire submission not found.'
+      });
     }
-  }
 
-  if (answers.commonSymptoms && answers.commonSymptoms.length > 0) {
-    observations.push(`Recurring primary symptoms noted: ${answers.commonSymptoms.join(', ')}.`);
-  }
+    // Always recalculate on server
+    const assessment = evaluateQuestionnaire(submission.answers);
 
-  if (answers.bleedingPattern) {
-    observations.push(`Bleeding characteristic: ${answers.bleedingPattern}.`);
+    return res.status(200).json({
+      success: true,
+      submissionId: submission._id,
+      assessment
+    });
+  } catch (err) {
+    next(err);
   }
+};
 
-  if (answers.sleepQuality) {
-    observations.push(`Reported sleep during luteal/period days: ${answers.sleepQuality}.`);
+/**
+ * Delete a specific submission belonging to user
+ * DELETE /api/questionnaires/:id
+ */
+exports.deleteById = async (req, res, next) => {
+  try {
+    const userId = req.session.userId;
+    const deleted = await QuestionnaireResponse.findOneAndDelete({ _id: req.params.id, userId });
+
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        error: 'Questionnaire submission not found.'
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Questionnaire record deleted successfully.'
+    });
+  } catch (err) {
+    next(err);
   }
-
-  return {
-    completionDate: new Date().toLocaleDateString(),
-    observations,
-    disclaimer: 'This assessment summary synthesizes self-reported patterns for your personal reference and healthcare discussions. It does NOT diagnose medical conditions.'
-  };
-}
+};

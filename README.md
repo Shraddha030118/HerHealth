@@ -1,7 +1,7 @@
 # 🌸 HerHealth AI — Women's Menstrual Healthcare Web Application
 > **Tagline:** *Your Symptoms. Your Story. Your Health.*
 
-HerHealth AI is an integrated, privacy-conscious women's menstrual healthcare companion designed to empower individuals to track their menstrual cycles, understand recurring symptoms with evidence-informed intelligence, explore guided relaxation and breathwork, discover nutritional guidance, receive conservative health alerts, and prepare doctor-ready clinical summaries for healthcare consultations.
+HerHealth AI is an integrated, privacy-conscious women's menstrual health companion designed to support cycle tracking, general health education, guided relaxation and breathwork, nutritional information, conservative safety alerts, and preparation of doctor-ready summaries for healthcare consultations.
 
 ---
 
@@ -11,10 +11,10 @@ HerHealth AI is an integrated, privacy-conscious women's menstrual healthcare co
 2. **Interactive Menstrual Period Tracker:** Monthly visual calendar mapping period flow, spotting, and estimated upcoming dates with historical cycle duration calculations and cycle phase tracking.
 3. **Daily Symptom & Pain Analytics:** Record daily symptoms (cramps, headache, fatigue, bloating, flow, mood) with 0-10 pain intensity tracking and Chart.js trend visualizations.
 4. **Conversational AI Health Assistant:** General menstrual health educational guidance with a prompt-injection safe system prompt, emergency symptom triage, and an honest **Educational Demo Mode** fallback when no external API key is provided.
-5. **Conservative Menstrual Health Alerts:** Evidence-based clinical red-flag rules detecting unusually heavy bleeding, severe debilitating pain, or dizziness during bleeding with next-step clinical guidance.
+5. **Conservative Menstrual Health Alerts:** Rule-based checks for reported heavy bleeding, severe pain, or dizziness with next-step guidance; these checks are not a diagnosis and require professional clinical review before deployment.
 6. **Mindful Wellness, Yoga & Breathwork:** Interactive 4-7-8 parasympathetic breathwork circle with sound cues, synthesized Web Audio ambient soundscapes (432Hz theta waves, pink noise rain), and guided restorative yoga routines.
 7. **Nutritional Guidance & Daily Hydration:** Educational food pillars (Iron, Magnesium, Omega-3s) with vegetarian and non-vegetarian meal plans, plus a daily water tracker with bottle fill progress.
-8. **Structured Health Questionnaire:** Multi-step clinical assessment organizing self-reported symptom history and cycle regularity into non-diagnostic personal health summaries.
+8. **Structured Health Questionnaire:** Six-step, resumable questionnaire with an authenticated MongoDB history, immediate server-evaluated safety previews, and non-diagnostic results.
 9. **Doctor-Ready Clinical Health Reports:** Generate structured medical consultation summaries and download authentic, formatted PDF reports generated server-side using PDFKit.
 10. **In-App Notifications & Reminders:** Configurable reminders for upcoming periods, daily logging check-ins, and health alert notices.
 
@@ -47,7 +47,8 @@ HerHealth AI is connected to your Firebase project:
      - `symptoms`: Daily symptom logs, 0-10 pain ratings, and moods
      - `hydration`: Daily water consumption logs
      - `wellness`: Completed breathwork and yoga sessions
-     - `assessments`: Comprehensive health questionnaire responses
+
+Questionnaire answers and assessments are stored only in the authenticated Express/MongoDB application; the questionnaire page does not mirror sensitive responses to Firestore or send them to the AI assistant.
 
 ### Firebase Console Setup Checklist
 In your [Firebase Console](https://console.firebase.google.com/u/0/project/herhealth-b2950/overview):
@@ -135,9 +136,11 @@ HerHealth-AI/
 │   │   ├── aiService.js             # AI provider communication & demo fallback
 │   │   ├── cycleService.js          # Cycle intervals & phase calculations
 │   │   ├── healthAlertService.js    # Rule evaluation for red-flag symptoms
+│   │   ├── questionnaireAssessmentService.js # Input validation and four-level safety rules
 │   │   └── reportService.js         # PDFKit medical PDF builder
 │   └── tests/
-│       └── api.test.js              # Automated backend test suite (14 specs)
+│       ├── api.test.js              # Backend integration tests
+│       └── questionnaireAssessment.test.js # Questionnaire safety-rule unit tests
 │
 ├── .env.example                     # Environment template
 ├── .gitignore
@@ -174,15 +177,18 @@ FRONTEND_URL=http://localhost:5000
 AI_PROVIDER=demo
 AI_API_KEY=
 AI_MODEL=educational-demo
+EMERGENCY_NUMBER=112
 ```
-*(Leave `AI_API_KEY` empty to use the transparent, medically-reviewed educational Demo Mode).*
+*(Leave `AI_API_KEY` empty to use the transparent educational Demo Mode).*
+
+`EMERGENCY_NUMBER` controls the emergency contact shown in questionnaire Level 4 guidance. The default is `112`; configure it for the user's deployment location.
 
 ### 3. Run Automated Tests
-Run the comprehensive backend verification suite:
+Run the backend integration and questionnaire assessment tests:
 ```bash
 npm test
 ```
-All 14 integration test specifications will execute and verify authentication, user data isolation, cycle metrics, period validation, symptom alerts, AI fallback, and PDF download.
+The tests cover authentication, user data isolation, cycle metrics, period validation, symptom alerts, AI fallback, PDF download, input validation, and assessment escalation.
 
 ### 4. Start the Application
 Start the unified full-stack server:
@@ -211,8 +217,29 @@ http://localhost:5000
 ## 🔒 Privacy & Healthcare Safeguards
 
 - **No Medical Diagnoses:** HerHealth AI clearly notes across all pages that it is an educational self-tracking tool and never substitutes for clinical medical evaluation.
+- **Questionnaire Privacy:** Questionnaire submissions are available only to the authenticated account owner, are recalculated by the server, and are included in the account data purge. The questionnaire workflow does not send responses to an external AI provider or Firestore.
 - **Emergency Triage:** If red-flag symptoms (severe sudden pain, fainting, dizziness with heavy bleeding) are detected in symptom logs or AI chat queries, the platform immediately presents emergency medical advisory notices.
 - **Complete Data Ownership:** Users can download their raw data via doctor reports or delete their entire account and all associated health history permanently at any time.
+
+## 🩺 Questionnaire Safety Assessment Rules
+
+The assessment engine is deterministic and runs on the backend. It prioritizes the highest matching level and never accepts an urgency level supplied by the browser.
+
+1. **General wellness:** No evaluated warning sign is reported. This is not a finding that a person is healthy and cannot rule out a medical problem. Missing or uncertain answers are surfaced as assessment limitations.
+2. **Medical consultation:** Examples include pain that repeatedly affects daily activities or is rated 6/10 or higher, prolonged or between-period bleeding, and heavy bleeding with significant fatigue.
+3. **Urgent assessment:** Examples include severe pain (8/10 or selected severe pelvic pain), worsening pain rated at least 5/10, heavy bleeding with dizziness or weakness, possible pregnancy with significant/new pain, pain with fever, or changing products hourly for two consecutive hours.
+4. **Emergency warning:** Examples include hourly product changes for two consecutive hours with dizziness or marked weakness, fainting/collapse with heavy bleeding or severe pain, possible pregnancy with severe/shoulder-tip pain plus fainting or significant bleeding, or severe breathing difficulty with collapse/extreme pain. The configured emergency number is shown alongside local emergency services.
+
+“Not sure” and “Prefer not to answer” are retained as uncertainty and are not converted to “No.” Users may leave answers blank. Concerning reported symptoms still trigger guidance without requiring the remaining questions. The rule set is an educational safety aid, not a diagnostic tool; a qualified healthcare professional must review the questionnaire and escalation rules before real-world clinical deployment.
+
+Authenticated questionnaire endpoints are mounted at `/api/questionnaires` (the existing `/api/assessments` route remains as a compatibility alias):
+
+- `POST /api/questionnaires/preview` evaluates current answers without saving a submission, allowing urgent guidance before completion.
+- `POST /api/questionnaires` validates, recalculates, and stores a completed submission.
+- `POST /api/questionnaires/draft` saves the authenticated user's in-progress draft.
+- `GET /api/questionnaires/latest` and `GET /api/questionnaires/history` retrieve that user's latest record and completed history.
+- `GET /api/questionnaires/:id` and `GET /api/questionnaires/:id/assessment` retrieve that user's record and server-generated assessment.
+- `DELETE /api/questionnaires/:id` deletes a record owned by the authenticated user.
 
 ---
 
