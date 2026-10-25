@@ -1,0 +1,36 @@
+{
+  "users": {
+    "ewGBYNaCCdZGWTLHZpvmVPR5VW13": {
+      "uid": "ewGBYNaCCdZGWTLHZpvmVPR5VW13",
+      "name": "Shraddha Nayak",
+      "email": "shraddhanayak59@gmail.com",
+      "averageCycleLength": 28,
+      "averagePeriodDuration": 5,
+      "notificationPreferences": {
+        "periodReminder": true,
+        "symptomReminder": true,
+        "wellnessReminder": true,
+        "healthAlerts": true
+      },
+      "createdAt": {},
+      "updatedAt": {}
+    }
+  },
+  "periods": {},
+  "symptoms": {},
+  "wellness": {},
+  "hydration": {
+    "ewGBYNaCCdZGWTLHZpvmVPR5VW13_2026-10-25": {
+      "userId": "ewGBYNaCCdZGWTLHZpvmVPR5VW13",
+      "dateString": "2026-10-25",
+      "amountMl": 0,
+      "goalMl": 2000,
+      "glasses": 0,
+      "updatedAt": {}
+    }
+  },
+  "notifications": {},
+  "healthAlerts": {},
+  "chatConversations": {},
+  "assessments": {}
+}
