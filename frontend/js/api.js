@@ -1,19 +1,37 @@
 /**
  * HerHealth AI — Centralized API Client & Frontend Utilities
+ * Uses Firebase ID Tokens (Bearer auth) instead of session cookies.
  */
 
-const API_BASE = ''; // Relative path ensures seamless execution on same origin
+const API_BASE = ''; // Relative path — works on same origin (Vercel)
 
-// Generic Fetch wrapper with credentials and error handling
+// Get the current Firebase user's ID token for API authorization
+async function getFirebaseToken() {
+  try {
+    const fb = window.HerHealthFirebase;
+    if (!fb || !fb.auth || !fb.auth.currentUser) return null;
+    return await fb.auth.currentUser.getIdToken(/* forceRefresh */ false);
+  } catch (e) {
+    console.warn('[API] Could not get Firebase token:', e.message);
+    return null;
+  }
+}
+
+// Generic Fetch wrapper with Firebase token auth and error handling
 async function apiFetch(endpoint, options = {}) {
   const url = `${API_BASE}${endpoint}`;
+
+  // Attach Firebase ID token to Authorization header
+  const token = await getFirebaseToken();
+  const authHeaders = token ? { 'Authorization': `Bearer ${token}` } : {};
+
   const config = {
     method: options.method || 'GET',
     headers: {
       'Content-Type': 'application/json',
+      ...authHeaders,
       ...(options.headers || {})
     },
-    credentials: 'include', // Ensures HTTP-only session cookies are sent
     ...options
   };
 
@@ -40,7 +58,6 @@ async function apiFetch(endpoint, options = {}) {
 
     if (!res.ok) {
       if (res.status === 401) {
-        // Handle session expiry on protected pages
         const currentPath = window.location.pathname;
         const publicPages = ['/', '/index.html', '/pages/login.html', '/pages/register.html'];
         const isPublic = publicPages.some(p => currentPath.endsWith(p));

@@ -1,4 +1,8 @@
-const QuestionnaireResponse = require('../models/QuestionnaireResponse');
+/**
+ * HerHealth AI — Assessment/Questionnaire Controller (Firebase Firestore)
+ */
+const { getFirestore } = require('../config/firebase');
+const { FieldValue } = require('firebase-admin/firestore');
 const {
   evaluateQuestionnaire,
   validateQuestionnaireAnswers
@@ -13,88 +17,93 @@ function getValidatedAnswers(input) {
 
 exports.previewAssessment = async (req, res) => {
   const result = getValidatedAnswers(req.body.answers);
-  if (result.errors) {
-    return res.status(400).json({ success: false, errors: result.errors });
-  }
-
-  return res.status(200).json({
-    success: true,
-    assessment: evaluateQuestionnaire(result.answers)
-  });
+  if (result.errors) return res.status(400).json({ success: false, errors: result.errors });
+  return res.status(200).json({ success: true, assessment: evaluateQuestionnaire(result.answers) });
 };
 
-/**
- * Submit or finalize a Health Questionnaire
- * POST /api/questionnaires or POST /api/assessments
- */
 exports.submitQuestionnaire = async (req, res, next) => {
   try {
-    const userId = req.session.userId;
+    const uid = req.user.uid;
     const { answers = {}, currentStep = 6, completionStatus = 'completed' } = req.body;
+
     const result = getValidatedAnswers(answers);
-    if (result.errors) {
-      return res.status(400).json({ success: false, errors: result.errors });
-    }
+    if (result.errors) return res.status(400).json({ success: false, errors: result.errors });
     if (!['completed', 'in_progress'].includes(completionStatus)) {
-      return res.status(400).json({ success: false, error: 'Invalid questionnaire completion status.' });
-    }
-    if (!Number.isInteger(Number(currentStep)) || Number(currentStep) < 1 || Number(currentStep) > 6) {
-      return res.status(400).json({ success: false, error: 'Current step must be between 1 and 6.' });
+      return res.status(400).json({ success: false, error: 'Invalid completion status.' });
     }
 
-    // Server-side recalculation of assessment level - NEVER trust client-supplied assessment level!
     const assessmentResult = evaluateQuestionnaire(result.answers);
+    const db = getFirestore();
 
-    // Create a new submission record in history if completed, or update active draft
     let submission;
     if (completionStatus === 'completed') {
-      submission = await QuestionnaireResponse.findOne({ userId, completionStatus: 'in_progress' });
-      if (!submission) submission = new QuestionnaireResponse({ userId });
-      submission.answers = result.answers;
-      submission.currentStep = Number(currentStep);
-      submission.completionStatus = 'completed';
-      submission.submittedAt = new Date();
-      submission.assessment = {
-        level: assessmentResult.level,
-        levelName: assessmentResult.levelName,
-        colorCode: assessmentResult.colorCode,
-        badgeClass: assessmentResult.badgeClass,
-        icon: assessmentResult.icon,
-        title: assessmentResult.title,
-        bannerText: assessmentResult.bannerText,
-        actionHeader: assessmentResult.actionHeader,
-        urgencyStatement: assessmentResult.urgencyStatement,
-        triggeredRules: assessmentResult.triggeredRules,
-        explanations: assessmentResult.explanations,
-        recommendedNextSteps: assessmentResult.recommendedNextSteps,
-        evaluatedAt: new Date()
+      // Find existing in-progress draft to finalize
+      const draftSnap = await db.collection('questionnaires')
+        .where('userId', '==', uid)
+        .where('completionStatus', '==', 'in_progress')
+        .limit(1).get();
+
+      const docRef = draftSnap.empty
+        ? db.collection('questionnaires').doc()
+        : draftSnap.docs[0].ref;
+
+      const data = {
+        userId: uid,
+        answers: result.answers,
+        currentStep: Number(currentStep),
+        completionStatus: 'completed',
+        submittedAt: new Date().toISOString(),
+        assessment: {
+          level: assessmentResult.level,
+          levelName: assessmentResult.levelName,
+          colorCode: assessmentResult.colorCode,
+          badgeClass: assessmentResult.badgeClass,
+          icon: assessmentResult.icon,
+          title: assessmentResult.title,
+          bannerText: assessmentResult.bannerText,
+          actionHeader: assessmentResult.actionHeader,
+          urgencyStatement: assessmentResult.urgencyStatement,
+          triggeredRules: assessmentResult.triggeredRules,
+          explanations: assessmentResult.explanations,
+          recommendedNextSteps: assessmentResult.recommendedNextSteps,
+          evaluatedAt: new Date().toISOString()
+        },
+        updatedAt: FieldValue.serverTimestamp()
       };
-      await submission.save();
+
+      await docRef.set(data, { merge: true });
+      submission = { id: docRef.id, _id: docRef.id, ...data };
     } else {
-      // In-progress draft saving
-      submission = await QuestionnaireResponse.findOne({ userId, completionStatus: 'in_progress' });
-      if (!submission) {
-        submission = new QuestionnaireResponse({
-          userId,
-          answers,
-          currentStep: Number(currentStep) || 1,
-          completionStatus: 'in_progress'
-        });
+      // Save draft
+      const draftSnap = await db.collection('questionnaires')
+        .where('userId', '==', uid)
+        .where('completionStatus', '==', 'in_progress')
+        .limit(1).get();
+
+      const draftData = {
+        userId: uid,
+        answers: result.answers,
+        currentStep: Number(currentStep) || 1,
+        completionStatus: 'in_progress',
+        updatedAt: FieldValue.serverTimestamp()
+      };
+
+      let docRef;
+      if (draftSnap.empty) {
+        docRef = db.collection('questionnaires').doc();
+        await docRef.set({ ...draftData, createdAt: FieldValue.serverTimestamp() });
       } else {
-        submission.answers = { ...submission.answers, ...result.answers };
-        submission.currentStep = Number(currentStep) || submission.currentStep;
+        docRef = draftSnap.docs[0].ref;
+        await docRef.set(draftData, { merge: true });
       }
-      await submission.save();
+      const updated = await docRef.get();
+      submission = { id: updated.id, _id: updated.id, ...updated.data() };
     }
 
-    const statusCode = completionStatus !== 'completed' || req.baseUrl === '/api/assessments' ? 200 : 201;
-    return res.status(statusCode).json({
+    return res.status(completionStatus === 'completed' ? 201 : 200).json({
       success: true,
-      message: completionStatus === 'completed' ? 'Health questionnaire submitted and evaluated.' : 'Draft saved.',
-      submission,
-      assessment: assessmentResult,
-      // Backward-compatibility aliases
-      assessmentResult,
+      message: completionStatus === 'completed' ? 'Questionnaire submitted and evaluated.' : 'Draft saved.',
+      submission, assessment: assessmentResult, assessmentResult,
       summary: {
         completionDate: new Date().toLocaleDateString(),
         level: assessmentResult.level,
@@ -108,74 +117,67 @@ exports.submitQuestionnaire = async (req, res, next) => {
   }
 };
 
-/**
- * Save in-progress draft without full validation
- * POST /api/questionnaires/draft
- */
 exports.saveDraft = async (req, res, next) => {
   try {
-    const userId = req.session.userId;
+    const uid = req.user.uid;
     const { answers = {}, currentStep = 1 } = req.body;
     const result = getValidatedAnswers(answers);
-    if (result.errors) {
-      return res.status(400).json({ success: false, errors: result.errors });
-    }
-    if (!Number.isInteger(Number(currentStep)) || Number(currentStep) < 1 || Number(currentStep) > 6) {
-      return res.status(400).json({ success: false, error: 'Current step must be between 1 and 6.' });
-    }
+    if (result.errors) return res.status(400).json({ success: false, errors: result.errors });
 
-    let draft = await QuestionnaireResponse.findOne({ userId, completionStatus: 'in_progress' });
-    if (!draft) {
-      draft = new QuestionnaireResponse({
-        userId,
-        answers: result.answers,
-        currentStep: Number(currentStep),
-        completionStatus: 'in_progress'
-      });
+    const db = getFirestore();
+    const draftSnap = await db.collection('questionnaires')
+      .where('userId', '==', uid)
+      .where('completionStatus', '==', 'in_progress')
+      .limit(1).get();
+
+    const draftData = {
+      userId: uid, answers: result.answers,
+      currentStep: Number(currentStep), completionStatus: 'in_progress',
+      updatedAt: FieldValue.serverTimestamp()
+    };
+
+    let docRef;
+    if (draftSnap.empty) {
+      docRef = db.collection('questionnaires').doc();
+      await docRef.set({ ...draftData, createdAt: FieldValue.serverTimestamp() });
     } else {
-      draft.answers = { ...draft.answers, ...result.answers };
-      draft.currentStep = Number(currentStep);
+      docRef = draftSnap.docs[0].ref;
+      await docRef.set(draftData, { merge: true });
     }
 
-    await draft.save();
-
+    const updated = await docRef.get();
     return res.status(200).json({
-      success: true,
-      message: 'Draft saved successfully.',
-      draft
+      success: true, message: 'Draft saved.',
+      draft: { id: updated.id, _id: updated.id, ...updated.data() }
     });
   } catch (err) {
     next(err);
   }
 };
 
-/**
- * Get latest submission or draft for user
- * GET /api/questionnaires/latest or GET /api/assessments
- */
 exports.getLatest = async (req, res, next) => {
   try {
-    const userId = req.session.userId;
-    // Get newest completed or in_progress questionnaire
-    const latest = await QuestionnaireResponse.findOne({ userId }).sort({ createdAt: -1 });
+    const uid = req.user.uid;
+    const db = getFirestore();
+    const snap = await db.collection('questionnaires')
+      .where('userId', '==', uid)
+      .orderBy('updatedAt', 'desc')
+      .limit(1).get();
 
-    let assessment = null;
-    if (latest && latest.answers) {
-      assessment = evaluateQuestionnaire(latest.answers);
+    if (snap.empty) {
+      return res.status(200).json({ success: true, submission: null, assessment: null, assessmentData: null, summary: null });
     }
 
+    const doc = snap.docs[0];
+    const submission = { id: doc.id, _id: doc.id, ...doc.data() };
+    const assessment = submission.answers ? evaluateQuestionnaire(submission.answers) : null;
+
     return res.status(200).json({
-      success: true,
-      submission: latest,
-      assessment,
-      // Backward compatibility aliases
-      assessmentData: latest,
+      success: true, submission, assessment, assessmentData: submission,
       summary: assessment ? {
-        completionDate: latest.submittedAt ? new Date(latest.submittedAt).toLocaleDateString() : new Date().toLocaleDateString(),
-        level: assessment.level,
-        levelName: assessment.levelName,
-        observations: assessment.explanations,
-        disclaimer: assessment.disclaimer
+        completionDate: submission.submittedAt ? new Date(submission.submittedAt).toLocaleDateString() : new Date().toLocaleDateString(),
+        level: assessment.level, levelName: assessment.levelName,
+        observations: assessment.explanations, disclaimer: assessment.disclaimer
       } : null
     });
   } catch (err) {
@@ -183,104 +185,65 @@ exports.getLatest = async (req, res, next) => {
   }
 };
 
-/**
- * Retrieve questionnaire history list for authenticated user
- * GET /api/questionnaires/history
- */
 exports.getHistory = async (req, res, next) => {
   try {
-    const userId = req.session.userId;
-    const history = await QuestionnaireResponse.find({ userId, completionStatus: 'completed' })
-      .sort({ createdAt: -1 })
-      .limit(30);
+    const uid = req.user.uid;
+    const db = getFirestore();
+    const snap = await db.collection('questionnaires')
+      .where('userId', '==', uid)
+      .where('completionStatus', '==', 'completed')
+      .orderBy('updatedAt', 'desc')
+      .limit(30).get();
 
-    return res.status(200).json({
-      success: true,
-      count: history.length,
-      history
-    });
+    const history = snap.docs.map(d => ({ id: d.id, _id: d.id, ...d.data() }));
+    return res.status(200).json({ success: true, count: history.length, history });
   } catch (err) {
     next(err);
   }
 };
 
-/**
- * Retrieve a specific questionnaire submission by ID
- * GET /api/questionnaires/:id
- */
 exports.getById = async (req, res, next) => {
   try {
-    const userId = req.session.userId;
-    const submission = await QuestionnaireResponse.findOne({ _id: req.params.id, userId });
-
-    if (!submission) {
-      return res.status(404).json({
-        success: false,
-        error: 'Questionnaire submission not found.'
-      });
+    const uid = req.user.uid;
+    const db = getFirestore();
+    const doc = await db.collection('questionnaires').doc(req.params.id).get();
+    if (!doc.exists || doc.data().userId !== uid) {
+      return res.status(404).json({ success: false, error: 'Submission not found.' });
     }
-
+    const submission = { id: doc.id, _id: doc.id, ...doc.data() };
     const assessment = evaluateQuestionnaire(submission.answers);
-
-    return res.status(200).json({
-      success: true,
-      submission,
-      assessment
-    });
+    return res.status(200).json({ success: true, submission, assessment });
   } catch (err) {
     next(err);
   }
 };
 
-/**
- * Get server-generated assessment for specific submission
- * GET /api/questionnaires/:id/assessment
- */
 exports.getAssessmentById = async (req, res, next) => {
   try {
-    const userId = req.session.userId;
-    const submission = await QuestionnaireResponse.findOne({ _id: req.params.id, userId });
-
-    if (!submission) {
-      return res.status(404).json({
-        success: false,
-        error: 'Questionnaire submission not found.'
-      });
+    const uid = req.user.uid;
+    const db = getFirestore();
+    const doc = await db.collection('questionnaires').doc(req.params.id).get();
+    if (!doc.exists || doc.data().userId !== uid) {
+      return res.status(404).json({ success: false, error: 'Submission not found.' });
     }
-
-    // Always recalculate on server
-    const assessment = evaluateQuestionnaire(submission.answers);
-
-    return res.status(200).json({
-      success: true,
-      submissionId: submission._id,
-      assessment
-    });
+    const assessment = evaluateQuestionnaire(doc.data().answers);
+    return res.status(200).json({ success: true, submissionId: doc.id, assessment });
   } catch (err) {
     next(err);
   }
 };
 
-/**
- * Delete a specific submission belonging to user
- * DELETE /api/questionnaires/:id
- */
 exports.deleteById = async (req, res, next) => {
   try {
-    const userId = req.session.userId;
-    const deleted = await QuestionnaireResponse.findOneAndDelete({ _id: req.params.id, userId });
-
-    if (!deleted) {
-      return res.status(404).json({
-        success: false,
-        error: 'Questionnaire submission not found.'
-      });
+    const uid = req.user.uid;
+    const db = getFirestore();
+    const docRef = db.collection('questionnaires').doc(req.params.id);
+    const doc = await docRef.get();
+    if (!doc.exists || doc.data().userId !== uid) {
+      return res.status(404).json({ success: false, error: 'Submission not found.' });
     }
-
-    return res.status(200).json({
-      success: true,
-      message: 'Questionnaire record deleted successfully.'
-    });
+    await docRef.delete();
+    return res.status(200).json({ success: true, message: 'Questionnaire record deleted.' });
   } catch (err) {
     next(err);
   }

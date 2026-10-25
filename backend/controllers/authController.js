@@ -1,68 +1,46 @@
-const bcrypt = require('bcryptjs');
-const User = require('../models/User');
-const Notification = require('../models/Notification');
+/**
+ * HerHealth AI — Auth Controller (Firebase)
+ * Registration/Login are handled by Firebase Auth on the frontend.
+ * These endpoints sync user profiles to Firestore and return status.
+ */
+const { getFirestore } = require('../config/firebase');
+const { FieldValue } = require('firebase-admin/firestore');
 
 exports.register = async (req, res, next) => {
   try {
-    const { name, email, password, age, privacyConsent } = req.body;
+    // Registration is done via Firebase Auth on the frontend.
+    // This endpoint syncs the profile to Firestore if needed.
+    const { name, email, age } = req.body;
+    const uid = req.user?.uid;
 
-    if (!name || !email || !password) {
-      return res.status(400).json({
-        success: false,
-        error: 'Name, email, and password are required.'
+    if (!uid) {
+      return res.status(401).json({ success: false, error: 'Not authenticated.' });
+    }
+
+    const db = getFirestore();
+    const userRef = db.collection('users').doc(uid);
+    const existing = await userRef.get();
+
+    if (!existing.exists) {
+      await userRef.set({
+        uid,
+        name: name || 'User',
+        email: email || req.user.email,
+        age: age ? Number(age) : null,
+        averageCycleLength: 28,
+        averagePeriodDuration: 5,
+        notificationPreferences: {
+          periodReminder: true,
+          symptomReminder: true,
+          wellnessReminder: true,
+          healthAlerts: true
+        },
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp()
       });
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({
-        success: false,
-        error: 'Password must be at least 6 characters long.'
-      });
-    }
-
-    if (!privacyConsent) {
-      return res.status(400).json({
-        success: false,
-        error: 'You must consent to the privacy notice to create an account.'
-      });
-    }
-
-    const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        error: 'An account with this email address is already registered.'
-      });
-    }
-
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(password, salt);
-
-    const newUser = await User.create({
-      name: name.trim(),
-      email: email.toLowerCase().trim(),
-      passwordHash,
-      age: age ? Number(age) : undefined,
-      privacyConsent: true
-    });
-
-    // Establish session
-    req.session.userId = newUser._id;
-
-    // Create a welcoming in-app notification
-    await Notification.create({
-      userId: newUser._id,
-      type: 'system',
-      title: 'Welcome to HerHealth AI! 🌸',
-      message: 'Your personal menstrual health companion is ready. Start by logging your last period or exploring wellness activities.',
-      severity: 'info'
-    });
-
-    return res.status(201).json({
-      success: true,
-      message: 'Registration successful.',
-      user: newUser.toSafeObject()
-    });
+    return res.status(201).json({ success: true, message: 'Profile synced.', user: { uid, email, name } });
   } catch (err) {
     next(err);
   }
@@ -70,80 +48,48 @@ exports.register = async (req, res, next) => {
 
 exports.login = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    // Login is handled by Firebase Auth on the frontend.
+    // This endpoint just confirms the token is valid (middleware already verified it).
+    const uid = req.user.uid;
+    const db = getFirestore();
+    const userDoc = await db.collection('users').doc(uid).get();
 
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        error: 'Please provide both email and password.'
+    // Create Firestore doc if it doesn't exist yet
+    if (!userDoc.exists) {
+      await db.collection('users').doc(uid).set({
+        uid,
+        name: req.user.name || 'User',
+        email: req.user.email,
+        averageCycleLength: 28,
+        averagePeriodDuration: 5,
+        notificationPreferences: {
+          periodReminder: true, symptomReminder: true,
+          wellnessReminder: true, healthAlerts: true
+        },
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp()
       });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase().trim() });
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid email or password.'
-      });
-    }
-
-    const isMatch = await bcrypt.compare(password, user.passwordHash);
-    if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid email or password.'
-      });
-    }
-
-    req.session.userId = user._id;
-
-    return res.status(200).json({
-      success: true,
-      message: 'Login successful.',
-      user: user.toSafeObject()
-    });
+    const user = userDoc.exists ? { uid, ...userDoc.data() } : req.user;
+    return res.status(200).json({ success: true, message: 'Login successful.', user });
   } catch (err) {
     next(err);
   }
 };
 
 exports.logout = (req, res) => {
-  req.session.destroy(err => {
-    if (err) {
-      return res.status(500).json({
-        success: false,
-        error: 'Could not log out at this moment.'
-      });
-    }
-    res.clearCookie('connect.sid');
-    return res.status(200).json({
-      success: true,
-      message: 'Logged out successfully.'
-    });
-  });
+  // Firebase logout is handled client-side via firebase.auth().signOut()
+  return res.status(200).json({ success: true, message: 'Logged out successfully.' });
 };
 
 exports.getMe = async (req, res, next) => {
   try {
-    if (!req.session || !req.session.userId) {
-      return res.status(401).json({
-        success: false,
-        error: 'Not authenticated.'
-      });
-    }
-
-    const user = await User.findById(req.session.userId);
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        error: 'User not found.'
-      });
-    }
-
-    return res.status(200).json({
-      success: true,
-      user: user.toSafeObject()
-    });
+    const uid = req.user.uid;
+    const db = getFirestore();
+    const userDoc = await db.collection('users').doc(uid).get();
+    const user = userDoc.exists ? { uid, ...userDoc.data() } : req.user;
+    return res.status(200).json({ success: true, user });
   } catch (err) {
     next(err);
   }

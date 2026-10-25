@@ -1,21 +1,25 @@
-const PeriodRecord = require('../models/PeriodRecord');
-const User = require('../models/User');
+/**
+ * HerHealth AI — Period Controller (Firebase Firestore)
+ */
+const { getFirestore } = require('../config/firebase');
+const { FieldValue } = require('firebase-admin/firestore');
 const { calculateCycleMetrics } = require('../services/cycleService');
+
+async function getUserPeriods(db, uid) {
+  const snap = await db.collection('periods')
+    .where('userId', '==', uid)
+    .orderBy('startDate', 'desc')
+    .get();
+  return snap.docs.map(d => ({ id: d.id, _id: d.id, ...d.data() }));
+}
 
 exports.getAllPeriods = async (req, res, next) => {
   try {
-    const userId = req.session.userId;
-    const records = await PeriodRecord.find({ userId }).sort({ startDate: -1 });
-    const user = await User.findById(userId);
-
-    const metrics = calculateCycleMetrics(records, user);
-
-    return res.status(200).json({
-      success: true,
-      count: records.length,
-      records,
-      metrics
-    });
+    const uid = req.user.uid;
+    const db = getFirestore();
+    const records = await getUserPeriods(db, uid);
+    const metrics = calculateCycleMetrics(records, req.user);
+    return res.status(200).json({ success: true, count: records.length, records, metrics });
   } catch (err) {
     next(err);
   }
@@ -23,57 +27,51 @@ exports.getAllPeriods = async (req, res, next) => {
 
 exports.createPeriod = async (req, res, next) => {
   try {
-    const userId = req.session.userId;
+    const uid = req.user.uid;
     const { startDate, endDate, flowIntensity, notes } = req.body;
 
     if (!startDate) {
-      return res.status(400).json({
-        success: false,
-        error: 'Period start date is required.'
-      });
+      return res.status(400).json({ success: false, error: 'Period start date is required.' });
     }
 
     const sDate = new Date(startDate);
-    const eDate = endDate ? new Date(endDate) : undefined;
-
     if (isNaN(sDate.getTime())) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid start date format.'
-      });
+      return res.status(400).json({ success: false, error: 'Invalid start date format.' });
     }
 
+    const eDate = endDate ? new Date(endDate) : null;
     if (eDate && eDate < sDate) {
-      return res.status(400).json({
-        success: false,
-        error: 'End date cannot precede the start date.'
-      });
+      return res.status(400).json({ success: false, error: 'End date cannot precede the start date.' });
     }
 
-    const record = await PeriodRecord.create({
-      userId,
-      startDate: sDate,
-      endDate: eDate,
+    const db = getFirestore();
+    const data = {
+      userId: uid,
+      startDate: sDate.toISOString(),
+      endDate: eDate ? eDate.toISOString() : null,
       flowIntensity: flowIntensity || 'medium',
-      notes: notes ? notes.trim() : ''
-    });
+      notes: notes ? notes.trim() : '',
+      createdAt: FieldValue.serverTimestamp()
+    };
 
-    // Update user's lastPeriodStartDate if this is more recent
-    const user = await User.findById(userId);
-    if (!user.lastPeriodStartDate || sDate > new Date(user.lastPeriodStartDate)) {
-      user.lastPeriodStartDate = sDate;
-      await user.save();
+    const docRef = await db.collection('periods').add(data);
+    const record = { id: docRef.id, _id: docRef.id, ...data };
+
+    // Update user's lastPeriodStartDate
+    const userDoc = await db.collection('users').doc(uid).get();
+    const userData = userDoc.exists ? userDoc.data() : {};
+    if (!userData.lastPeriodStartDate || sDate > new Date(userData.lastPeriodStartDate)) {
+      await db.collection('users').doc(uid).set(
+        { lastPeriodStartDate: sDate.toISOString(), updatedAt: FieldValue.serverTimestamp() },
+        { merge: true }
+      );
     }
 
-    // Recalculate metrics
-    const allRecords = await PeriodRecord.find({ userId }).sort({ startDate: -1 });
-    const metrics = calculateCycleMetrics(allRecords, user);
+    const allRecords = await getUserPeriods(db, uid);
+    const metrics = calculateCycleMetrics(allRecords, req.user);
 
     return res.status(201).json({
-      success: true,
-      message: 'Period record created successfully.',
-      record,
-      metrics
+      success: true, message: 'Period record created successfully.', record, metrics
     });
   } catch (err) {
     next(err);
@@ -82,20 +80,15 @@ exports.createPeriod = async (req, res, next) => {
 
 exports.getPeriodById = async (req, res, next) => {
   try {
-    const userId = req.session.userId;
-    const record = await PeriodRecord.findOne({ _id: req.params.id, userId });
+    const uid = req.user.uid;
+    const db = getFirestore();
+    const doc = await db.collection('periods').doc(req.params.id).get();
 
-    if (!record) {
-      return res.status(404).json({
-        success: false,
-        error: 'Period record not found.'
-      });
+    if (!doc.exists || doc.data().userId !== uid) {
+      return res.status(404).json({ success: false, error: 'Period record not found.' });
     }
 
-    return res.status(200).json({
-      success: true,
-      record
-    });
+    return res.status(200).json({ success: true, record: { id: doc.id, _id: doc.id, ...doc.data() } });
   } catch (err) {
     next(err);
   }
@@ -103,46 +96,32 @@ exports.getPeriodById = async (req, res, next) => {
 
 exports.updatePeriod = async (req, res, next) => {
   try {
-    const userId = req.session.userId;
+    const uid = req.user.uid;
     const { startDate, endDate, flowIntensity, notes } = req.body;
+    const db = getFirestore();
+    const docRef = db.collection('periods').doc(req.params.id);
+    const doc = await docRef.get();
 
-    const record = await PeriodRecord.findOne({ _id: req.params.id, userId });
-    if (!record) {
-      return res.status(404).json({
-        success: false,
-        error: 'Period record not found.'
-      });
+    if (!doc.exists || doc.data().userId !== uid) {
+      return res.status(404).json({ success: false, error: 'Period record not found.' });
     }
 
+    const updates = { updatedAt: FieldValue.serverTimestamp() };
     if (startDate) {
-      const sDate = new Date(startDate);
-      if (isNaN(sDate.getTime())) {
-        return res.status(400).json({ success: false, error: 'Invalid start date.' });
-      }
-      record.startDate = sDate;
+      const d = new Date(startDate);
+      if (isNaN(d.getTime())) return res.status(400).json({ success: false, error: 'Invalid start date.' });
+      updates.startDate = d.toISOString();
     }
+    if (endDate !== undefined) updates.endDate = endDate ? new Date(endDate).toISOString() : null;
+    if (flowIntensity) updates.flowIntensity = flowIntensity;
+    if (notes !== undefined) updates.notes = notes.trim();
 
-    if (endDate !== undefined) {
-      if (endDate) {
-        const eDate = new Date(endDate);
-        if (eDate < record.startDate) {
-          return res.status(400).json({ success: false, error: 'End date cannot precede start date.' });
-        }
-        record.endDate = eDate;
-      } else {
-        record.endDate = undefined;
-      }
-    }
-
-    if (flowIntensity) record.flowIntensity = flowIntensity;
-    if (notes !== undefined) record.notes = notes.trim();
-
-    await record.save();
+    await docRef.update(updates);
+    const updated = await docRef.get();
 
     return res.status(200).json({
-      success: true,
-      message: 'Period record updated successfully.',
-      record
+      success: true, message: 'Period record updated.',
+      record: { id: updated.id, _id: updated.id, ...updated.data() }
     });
   } catch (err) {
     next(err);
@@ -151,20 +130,17 @@ exports.updatePeriod = async (req, res, next) => {
 
 exports.deletePeriod = async (req, res, next) => {
   try {
-    const userId = req.session.userId;
-    const record = await PeriodRecord.findOneAndDelete({ _id: req.params.id, userId });
+    const uid = req.user.uid;
+    const db = getFirestore();
+    const docRef = db.collection('periods').doc(req.params.id);
+    const doc = await docRef.get();
 
-    if (!record) {
-      return res.status(404).json({
-        success: false,
-        error: 'Period record not found.'
-      });
+    if (!doc.exists || doc.data().userId !== uid) {
+      return res.status(404).json({ success: false, error: 'Period record not found.' });
     }
 
-    return res.status(200).json({
-      success: true,
-      message: 'Period record deleted successfully.'
-    });
+    await docRef.delete();
+    return res.status(200).json({ success: true, message: 'Period record deleted.' });
   } catch (err) {
     next(err);
   }

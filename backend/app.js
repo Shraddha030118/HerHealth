@@ -1,12 +1,18 @@
+/**
+ * HerHealth AI — Express App (Firebase Edition)
+ * Replaced MongoDB/express-session with Firebase Admin + ID Token auth.
+ */
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
 const helmet = require('helmet');
-const session = require('express-session');
-const MongoStore = require('connect-mongo');
 const dotenv = require('dotenv');
 
 dotenv.config();
+
+// Initialize Firebase Admin on startup
+const { initFirebaseAdmin } = require('./config/firebase');
+initFirebaseAdmin();
 
 const errorHandler = require('./middleware/errorHandler');
 
@@ -25,7 +31,7 @@ const notificationRoutes = require('./routes/notificationRoutes');
 
 const app = express();
 
-// Security headers with permissive CSP for Chart.js and Google Fonts
+// Security headers
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -35,7 +41,7 @@ app.use(
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com", "data:"],
         imgSrc: ["'self'", "data:", "blob:", "https:"],
-        connectSrc: ["'self'", "https:", "http:", "https://*.googleapis.com", "https://*.firebaseio.com", "https://identitytoolkit.googleapis.com", "https://firestore.googleapis.com"],
+        connectSrc: ["'self'", "https:", "http:", "https://*.googleapis.com", "https://*.firebaseio.com", "https://identitytoolkit.googleapis.com", "https://firestore.googleapis.com", "https://securetoken.googleapis.com"],
         mediaSrc: ["'self'", "blob:", "data:"],
         objectSrc: ["'none'"]
       }
@@ -44,60 +50,26 @@ app.use(
   })
 );
 
-// CORS configuration for local development and split servers
+// CORS
 const allowedOrigins = [
-  process.env.FRONTEND_URL || 'http://localhost:5000',
+  process.env.FRONTEND_URL,
+  'http://localhost:5000',
   'http://127.0.0.1:5000',
   'http://localhost:5500',
   'http://127.0.0.1:5500',
   'http://localhost:3000'
-];
+].filter(Boolean);
 
-const corsMiddleware = cors({
-  origin: (origin, callback) => callback(null, !origin || allowedOrigins.includes(origin)),
+app.use(cors({
+  origin: (origin, callback) => callback(null, !origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')),
   credentials: true,
   methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-});
-
-app.use((req, res, next) => {
-  const origin = req.get('Origin');
-  if (origin && !allowedOrigins.includes(origin)) {
-    return res.status(403).json({
-      success: false,
-      error: 'Origin is not allowed by the CORS policy.'
-    });
-  }
-  return corsMiddleware(req, res, next);
-});
+}));
 
 // Body parsers
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// Session configuration
-const sessionSecret = process.env.SESSION_SECRET || 'herhealth_session_secret_dev_key';
-const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/herhealth_db';
-
-const sessionConfig = {
-  name: 'herhealth.sid',
-  secret: sessionSecret,
-  resave: false,
-  saveUninitialized: false,
-  store: MongoStore.create({
-    mongoUrl: mongoUri,
-    collectionName: 'sessions',
-    ttl: 14 * 24 * 60 * 60 // 14 days
-  }),
-  cookie: {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 14 * 24 * 60 * 60 * 1000 // 14 days
-  }
-};
-
-app.use(session(sessionConfig));
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -113,21 +85,21 @@ app.use('/api/questionnaires', assessmentRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/notifications', notificationRoutes);
 
-// Health check endpoint
+// Health check
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     status: 'online',
     appName: 'HerHealth AI',
     timestamp: new Date().toISOString(),
+    database: 'Firebase Firestore',
     aiProvider: process.env.AI_API_KEY ? 'active-external-llm' : 'educational-demo-mode'
   });
 });
 
-// Serve frontend static assets directly from express server
+// Serve frontend static assets
 const frontendPath = path.join(__dirname, '../frontend');
 app.use(express.static(frontendPath));
 
-// Explicit route fallbacks for SPA navigation
 app.get('/', (req, res) => {
   res.sendFile(path.join(frontendPath, 'index.html'));
 });
