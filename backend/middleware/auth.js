@@ -45,6 +45,7 @@ const requireAuth = async (req, res, next) => {
 
     next();
   } catch (err) {
+    console.warn('[requireAuth Error]:', err.message);
     return res.status(401).json({
       success: false,
       error: 'Invalid or expired session. Please log in again.'

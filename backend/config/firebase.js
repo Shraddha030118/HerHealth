@@ -4,22 +4,36 @@
  * Auth uses Firebase ID Tokens instead of express-session.
  */
 const admin = require('firebase-admin');
+const { getAuth: getAdminAuth } = require('firebase-admin/auth');
+const { getFirestore: getAdminFirestore } = require('firebase-admin/firestore');
 
 let initialized = false;
 
 function initFirebaseAdmin() {
   if (initialized) return admin;
 
+  // Check if already initialized on default app
+  if (admin.apps && admin.apps.length > 0) {
+    initialized = true;
+    return admin;
+  }
+
   // On Vercel, use environment variable for service account JSON
   if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-      projectId: serviceAccount.project_id
-    });
+    try {
+      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+        projectId: serviceAccount.project_id
+      });
+    } catch (e) {
+      console.warn('[Firebase Admin] Error parsing FIREBASE_SERVICE_ACCOUNT, using project ID fallback:', e.message);
+      admin.initializeApp({
+        projectId: process.env.FIREBASE_PROJECT_ID || 'herhealth-b2950'
+      });
+    }
   } else {
-    // Fallback: use application default credentials (works locally if `gcloud auth` is set)
-    // OR initialize with just the project ID for emulator / dev use
+    // Fallback: use project ID
     admin.initializeApp({
       projectId: process.env.FIREBASE_PROJECT_ID || 'herhealth-b2950'
     });
@@ -32,12 +46,12 @@ function initFirebaseAdmin() {
 
 function getFirestore() {
   if (!initialized) initFirebaseAdmin();
-  return admin.firestore();
+  return getAdminFirestore();
 }
 
 function getAuth() {
   if (!initialized) initFirebaseAdmin();
-  return admin.auth();
+  return getAdminAuth();
 }
 
 module.exports = { initFirebaseAdmin, getFirestore, getAuth };
