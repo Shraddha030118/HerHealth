@@ -1,0 +1,134 @@
+/* ==========================================================================
+   HERHEALTH AI — WELLNESS & RELAXATION STYLES
+   ========================================================================== */
+
+/* Breathing Interactive Circle */
+.breathing-card {
+  background: linear-gradient(135deg, rgba(235, 228, 251, 0.6), rgba(253, 242, 246, 0.7));
+  border: 1.5px solid var(--primary-200);
+  border-radius: var(--radius-xl);
+  padding: 36px 24px;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 32px;
+}
+
+.breathing-circle-stage {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  margin: 30px auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.breathing-outer-ring {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 2px dashed var(--primary-300);
+  opacity: 0.6;
+}
+
+.breathing-pulsing-orb {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary-400), var(--blush-400));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  box-shadow: 0 0 30px rgba(124, 71, 217, 0.35);
+  transition: transform 1s ease-in-out, background 1s ease;
+  will-change: transform;
+}
+
+.breathing-phase-text {
+  font-family: var(--font-heading);
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.breathing-seconds-counter {
+  font-size: 1.8rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.breathing-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+/* Soundscape Cards */
+.soundscapes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  margin-bottom: 32px;
+}
+
+.sound-track-card {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-normal);
+}
+
+.sound-track-card.playing {
+  border-color: var(--primary-500);
+  box-shadow: var(--shadow-glow);
+}
+
+/* Movement Poses Grid */
+.yoga-poses-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.yoga-pose-card {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  padding: 26px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform var(--transition-normal);
+}
+
+.yoga-pose-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+
+.pose-instructions-list {
+  padding-left: 18px;
+  margin: 14px 0;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.pose-instructions-list li {
+  margin-bottom: 6px;
+}

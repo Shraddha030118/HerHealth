@@ -1,0 +1,91 @@
+/* ==========================================================================
+   HERHEALTH AI — DOCTOR REPORT STYLES
+   ========================================================================== */
+
+.report-preview-sheet {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  padding: 40px;
+  box-shadow: var(--shadow-sm);
+  max-width: 900px;
+  margin: 0 auto 36px;
+  color: #2b2b2b;
+}
+
+.report-header-banner {
+  background: linear-gradient(135deg, var(--primary-600), var(--primary-700));
+  color: #ffffff;
+  padding: 24px;
+  border-radius: var(--radius-md);
+  margin-bottom: 28px;
+}
+
+.report-header-banner h2 {
+  color: #ffffff;
+  font-size: 1.5rem;
+  margin-bottom: 4px;
+}
+
+.report-section {
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #eeeeee;
+}
+
+.report-section:last-child {
+  border-bottom: none;
+}
+
+.report-section-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--primary-800);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.report-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.report-stat-box {
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+}
+
+.report-stat-num {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--primary-700);
+}
+
+.report-stat-lbl {
+  font-size: 0.75rem;
+  color: #666;
+}
+
+@media print {
+  body {
+    background: #ffffff !important;
+  }
+  .app-sidebar, .app-topbar, .app-footer, .no-print {
+    display: none !important;
+  }
+  .app-main {
+    margin-left: 0 !important;
+  }
+  .report-preview-sheet {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+}

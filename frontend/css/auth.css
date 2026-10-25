@@ -1,0 +1,73 @@
+/* ==========================================================================
+   HERHEALTH AI — AUTHENTICATION STYLES (Login & Register)
+   ========================================================================== */
+
+.auth-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+  background: radial-gradient(circle at 10% 20%, rgba(245, 242, 253, 0.8) 0%, rgba(253, 242, 246, 0.5) 90%);
+}
+
+.auth-card {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  max-width: 480px;
+  width: 100%;
+  padding: 40px 36px;
+  box-shadow: var(--shadow-lg);
+}
+
+.auth-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.auth-header .brand-logo {
+  justify-content: center;
+  margin-bottom: 18px;
+}
+
+.auth-title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.auth-subtitle {
+  font-size: 0.92rem;
+  color: var(--text-muted);
+}
+
+.auth-footer {
+  text-align: center;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.auth-footer a {
+  font-weight: 700;
+}
+
+.privacy-checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.84rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  line-height: 1.45;
+}
+
+.privacy-checkbox-label input[type="checkbox"] {
+  margin-top: 3px;
+  accent-color: var(--primary-500);
+  width: 16px;
+  height: 16px;
+}

@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Health Assessment — HerHealth AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/assessment.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar Navigation -->
+    <aside class="app-sidebar" aria-label="Main Navigation">
+      <div class="sidebar-header">
+        <a href="/pages/dashboard.html" class="brand-logo">
+          <div class="brand-icon">🌸</div>
+          <div class="brand-text">HerHealth <span class="brand-badge">AI</span></div>
+        </a>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-title">Core Menu</div>
+        <a href="/pages/dashboard.html" class="nav-link">
+          <span class="nav-icon">📊</span>
+          <span>Dashboard</span>
+        </a>
+        <a href="/pages/period-tracker.html" class="nav-link">
+          <span class="nav-icon">📅</span>
+          <span>Period Tracker</span>
+        </a>
+        <a href="/pages/health-alerts.html" class="nav-link">
+          <span class="nav-icon">⚠️</span>
+          <span>Health Alerts</span>
+        </a>
+        <a href="/pages/health-assessment.html" class="nav-link active">
+          <span class="nav-icon">📝</span>
+          <span>Health Assessment</span>
+        </a>
+
+        <div class="nav-section-title">Care & Wellness</div>
+        <a href="/pages/ai-assistant.html" class="nav-link">
+          <span class="nav-icon">💬</span>
+          <span>AI Assistant</span>
+        </a>
+        <a href="/pages/wellness.html" class="nav-link">
+          <span class="nav-icon">🧘</span>
+          <span>Relaxation & Yoga</span>
+        </a>
+        <a href="/pages/nutrition.html" class="nav-link">
+          <span class="nav-icon">🥗</span>
+          <span>Nutrition & Water</span>
+        </a>
+
+        <div class="nav-section-title">Clinical & Settings</div>
+        <a href="/pages/health-report.html" class="nav-link">
+          <span class="nav-icon">📋</span>
+          <span>Doctor Report</span>
+        </a>
+        <a href="/pages/notifications.html" class="nav-link">
+          <span class="nav-icon">🔔</span>
+          <span>Notifications</span>
+          <span class="nav-badge notification-badge-count" style="display:none;">0</span>
+        </a>
+        <a href="/pages/profile.html" class="nav-link">
+          <span class="nav-icon">👤</span>
+          <span>My Profile</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <a href="/pages/profile.html" class="user-mini-profile">
+          <div class="user-avatar-circle user-avatar-display">H</div>
+          <div class="user-info-text">
+            <div class="user-name-text user-name-display">Loading...</div>
+            <div class="user-role-text">Personal Account</div>
+          </div>
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="app-main">
+      <header class="app-topbar">
+        <div class="topbar-left">
+          <button class="menu-toggle-btn" aria-label="Toggle navigation">☰</button>
+          <h1 class="page-title">Menstrual Health Baseline Assessment</h1>
+        </div>
+        <div class="topbar-right">
+          <button class="btn btn-secondary btn-sm" onclick="logoutUser()">Sign Out</button>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <!-- Assessment Form Card -->
+        <div class="assessment-stepper-card">
+          <!-- Stepper Header -->
+          <div class="step-progress-wrapper">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-weight:700; font-size:0.92rem; color:var(--primary-700);" id="step-indicator-text">
+                Step 1 of 5: Cycle Regularity & Length
+              </span>
+              <span class="badge badge-lavender" id="completion-status-badge">In Progress</span>
+            </div>
+            <div class="step-progress-bar-bg">
+              <div class="step-progress-bar-fill" id="step-progress-fill"></div>
+            </div>
+          </div>
+
+          <form id="assessment-form">
+            <!-- Step 1: Cycle Metrics -->
+            <div class="step-content-pane active" data-step="1">
+              <h2 style="font-size:1.35rem; margin-bottom:6px;">Your Cycle Basics</h2>
+              <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:20px;">
+                Understanding your average interval from the first day of one period to the first day of the next.
+              </p>
+
+              <div class="form-group">
+                <label class="form-label" for="q-cycle-length">Typical Cycle Length (in days)</label>
+                <input type="number" id="q-cycle-length" class="form-input" min="15" max="60" placeholder="e.g. 28" required>
+                <div class="form-help">Typical human menstrual cycles range between 21 and 35 days.</div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="q-period-duration">Average Bleeding Duration (in days)</label>
+                <input type="number" id="q-period-duration" class="form-input" min="1" max="15" placeholder="e.g. 5" required>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">How regular are your cycle start dates?</label>
+                <div class="choice-grid">
+                  <label class="choice-label-card">
+                    <input type="radio" name="cycleRegularity" value="Very regular (within 1-2 days variation)" required>
+                    <span>Very regular (± 1-2 days)</span>
+                  </label>
+                  <label class="choice-label-card">
+                    <input type="radio" name="cycleRegularity" value="Moderately regular (within 3-5 days variation)">
+                    <span>Moderately regular</span>
+                  </label>
+                  <label class="choice-label-card">
+                    <input type="radio" name="cycleRegularity" value="Irregular (unpredictable dates or skipped cycles)">
+                    <span>Irregular / Unpredictable</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 2: Pain & Discomfort Severity -->
+            <div class="step-content-pane" data-step="2">
+              <h2 style="font-size:1.35rem; margin-bottom:6px;">Pain & Discomfort Levels</h2>
+              <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:20px;">
+                Rate how menstrual cramps or pelvic aching impact your daily routine.
+              </p>
+
+              <div class="form-group">
+                <label class="form-label" for="q-pain-slider">
+                  Typical Cramp Pain Rating: <span id="q-pain-val" style="font-weight:800; color:var(--primary-600);">5 / 10</span>
+                </label>
+                <input type="range" id="q-pain-slider" min="0" max="10" value="5" style="width:100%; accent-color:var(--primary-500);">
+                <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-light); margin-top:4px;">
+                  <span>0 (No Pain)</span>
+                  <span>5 (Noticeable, manageable)</span>
+                  <span>10 (Debilitating / bedridden)</span>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Does menstrual pain interfere with school, work, or social life?</label>
+                <div class="choice-grid">
+                  <label class="choice-label-card">
+                    <input type="radio" name="painInterference" value="Rarely or never" required>
+                    <span>Rarely or never</span>
+                  </label>
+                  <label class="choice-label-card">
+                    <input type="radio" name="painInterference" value="Sometimes (1-2 days per cycle)">
+                    <span>Sometimes (1-2 days)</span>
+                  </label>
+                  <label class="choice-label-card">
+                    <input type="radio" name="painInterference" value="Severely (regularly unable to work or study)">
+                    <span>Severely (frequently disabled)</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 3: Symptoms & Bleeding Characteristics -->
+            <div class="step-content-pane" data-step="3">
+              <h2 style="font-size:1.35rem; margin-bottom:6px;">Symptoms & Flow Patterns</h2>
+              <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:20px;">
+                Select recurring symptoms you frequently observe in the days leading up to or during your flow.
+              </p>
+
+              <div class="form-group">
+                <label class="form-label">Primary Symptoms (Select all that apply)</label>
+                <div class="choice-grid" id="q-symptoms-list">
+                  <label class="choice-label-card"><input type="checkbox" name="q_sym" value="cramps"> Cramps / Pelvic pain</label>
+                  <label class="choice-label-card"><input type="checkbox" name="q_sym" value="headache"> Headache / Migraine</label>
+                  <label class="choice-label-card"><input type="checkbox" name="q_sym" value="fatigue"> Severe Fatigue</label>
+                  <label class="choice-label-card"><input type="checkbox" name="q_sym" value="bloating"> Abdominal Bloating</label>
+                  <label class="choice-label-card"><input type="checkbox" name="q_sym" value="back_pain"> Lower Back Ache</label>
+                  <label class="choice-label-card"><input type="checkbox" name="q_sym" value="nausea"> Nausea / Stomach upset</label>
+                  <label class="choice-label-card"><input type="checkbox" name="q_sym" value="breast_tenderness"> Breast Tenderness</label>
+                  <label class="choice-label-card"><input type="checkbox" name="q_sym" value="dizziness"> Dizziness / Faint feeling</label>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Bleeding Pattern Characteristic</label>
+                <select id="q-bleeding-pattern" class="form-select">
+                  <option value="Moderate flow with steady decline">Moderate flow with steady decline</option>
+                  <option value="Very heavy for first 2 days, soaking pads in under 2 hours">Very heavy for first 2 days, soaking pads in under 2 hours</option>
+                  <option value="Light spotting throughout">Light spotting throughout</option>
+                  <option value="Irregular flow with sudden clots">Irregular flow with sudden clots</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Step 4: Mood, Energy & Sleep -->
+            <div class="step-content-pane" data-step="4">
+              <h2 style="font-size:1.35rem; margin-bottom:6px;">Mood, Rest & Energy</h2>
+              <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:20px;">
+                Hormonal shifts directly interact with neurotransmitters like serotonin and dopamine.
+              </p>
+
+              <div class="form-group">
+                <label class="form-label">How would you describe your sleep quality prior to your period?</label>
+                <select id="q-sleep" class="form-select">
+                  <option value="Restful and continuous">Restful and continuous</option>
+                  <option value="Frequent insomnia or night wakings">Frequent insomnia or night wakings</option>
+                  <option value="Excessive sleepiness / trouble waking">Excessive sleepiness / trouble waking</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Mood changes during late luteal phase (PMS window)</label>
+                <div class="choice-grid">
+                  <label class="choice-label-card"><input type="radio" name="moodPms" value="Minimal or none" required> Minimal or none</label>
+                  <label class="choice-label-card"><input type="radio" name="moodPms" value="Moderate irritability or sensitivity"> Moderate sensitivity</label>
+                  <label class="choice-label-card"><input type="radio" name="moodPms" value="Severe anxiety or depressive mood drop"> Severe anxiety or depression</label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 5: Summary & Review -->
+            <div class="step-content-pane" data-step="5">
+              <h2 style="font-size:1.35rem; margin-bottom:6px;">Review & Clinical Summary</h2>
+              <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:20px;">
+                Organized synthesis of your self-reported health patterns.
+              </p>
+
+              <div id="assessment-summary-view" style="background:var(--bg-card-subtle); border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:20px; margin-bottom:20px;">
+                <!-- Summary synthesized here -->
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="q-personal-notes">Optional Personal Notes for Your Records</label>
+                <textarea id="q-personal-notes" class="form-textarea" rows="2" placeholder="Any specific topics or symptoms you plan to ask your healthcare provider about..."></textarea>
+              </div>
+            </div>
+
+            <!-- Stepper Actions -->
+            <div class="step-footer-actions">
+              <button type="button" class="btn btn-secondary" id="step-back-btn" style="visibility:hidden;">
+                ← Back
+              </button>
+              <div style="display:flex; gap:10px;">
+                <button type="button" class="btn btn-secondary btn-sm" id="save-draft-btn">
+                  💾 Save Draft
+                </button>
+                <button type="button" class="btn btn-primary" id="step-next-btn">
+                  Next Step →
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </main>
+
+      <footer class="app-footer">
+        <div>&copy; 2026 HerHealth AI — Structured Clinical Questionnaire.</div>
+        <div>Observations synthesize self-reported data and do not infer or diagnose medical disease.</div>
+      </footer>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script type="module" src="/js/firebase-config.js"></script>
+  <script src="/js/firebase-service.js"></script>
+  <script src="/js/health-assessment.js"></script>
+</body>
+</html>

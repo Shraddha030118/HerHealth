@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Health Assistant — HerHealth AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/assistant.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar Navigation -->
+    <aside class="app-sidebar" aria-label="Main Navigation">
+      <div class="sidebar-header">
+        <a href="/pages/dashboard.html" class="brand-logo">
+          <div class="brand-icon">🌸</div>
+          <div class="brand-text">HerHealth <span class="brand-badge">AI</span></div>
+        </a>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-title">Core Menu</div>
+        <a href="/pages/dashboard.html" class="nav-link">
+          <span class="nav-icon">📊</span>
+          <span>Dashboard</span>
+        </a>
+        <a href="/pages/period-tracker.html" class="nav-link">
+          <span class="nav-icon">📅</span>
+          <span>Period Tracker</span>
+        </a>
+        <a href="/pages/health-alerts.html" class="nav-link">
+          <span class="nav-icon">⚠️</span>
+          <span>Health Alerts</span>
+        </a>
+        <a href="/pages/health-assessment.html" class="nav-link">
+          <span class="nav-icon">📝</span>
+          <span>Health Assessment</span>
+        </a>
+
+        <div class="nav-section-title">Care & Wellness</div>
+        <a href="/pages/ai-assistant.html" class="nav-link active">
+          <span class="nav-icon">💬</span>
+          <span>AI Assistant</span>
+        </a>
+        <a href="/pages/wellness.html" class="nav-link">
+          <span class="nav-icon">🧘</span>
+          <span>Relaxation & Yoga</span>
+        </a>
+        <a href="/pages/nutrition.html" class="nav-link">
+          <span class="nav-icon">🥗</span>
+          <span>Nutrition & Water</span>
+        </a>
+
+        <div class="nav-section-title">Clinical & Settings</div>
+        <a href="/pages/health-report.html" class="nav-link">
+          <span class="nav-icon">📋</span>
+          <span>Doctor Report</span>
+        </a>
+        <a href="/pages/notifications.html" class="nav-link">
+          <span class="nav-icon">🔔</span>
+          <span>Notifications</span>
+          <span class="nav-badge notification-badge-count" style="display:none;">0</span>
+        </a>
+        <a href="/pages/profile.html" class="nav-link">
+          <span class="nav-icon">👤</span>
+          <span>My Profile</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <a href="/pages/profile.html" class="user-mini-profile">
+          <div class="user-avatar-circle user-avatar-display">H</div>
+          <div class="user-info-text">
+            <div class="user-name-text user-name-display">Loading...</div>
+            <div class="user-role-text">Personal Account</div>
+          </div>
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="app-main">
+      <header class="app-topbar">
+        <div class="topbar-left">
+          <button class="menu-toggle-btn" aria-label="Toggle navigation">☰</button>
+          <h1 class="page-title">Menstrual Health AI Companion</h1>
+        </div>
+        <div class="topbar-right">
+          <button class="btn btn-secondary btn-sm" id="clear-chat-btn">
+            <span>🗑️</span> Clear History
+          </button>
+          <button class="btn btn-secondary btn-sm" onclick="logoutUser()">Sign Out</button>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <!-- Persistent Medical Disclaimer -->
+        <div style="background:var(--primary-50); border:1px solid var(--primary-200); border-radius:var(--radius-md); padding:10px 16px; margin-bottom:16px; font-size:0.8rem; color:var(--text-muted); display:flex; align-items:center; justify-content:space-between;">
+          <div>
+            <strong>⚕️ Clinical Notice:</strong> This assistant provides general menstrual health education only and cannot diagnose diseases or prescribe medications. In case of emergency or severe sudden pain, seek immediate medical care.
+          </div>
+          <span class="chat-provider-badge" id="ai-mode-badge">
+            <span style="font-size:0.7rem;">●</span> Educational Demo Mode
+          </span>
+        </div>
+
+        <!-- Chat Card Container -->
+        <div class="chat-card-container">
+          <div class="chat-header-bar">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div style="width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg, var(--primary-500), var(--blush-400)); display:flex; align-items:center; justify-content:center; color:#fff; font-size:1.1rem;">
+                🌸
+              </div>
+              <div>
+                <h3 style="font-size:0.95rem; font-weight:700;">HerHealth Educational Assistant</h3>
+                <div style="font-size:0.75rem; color:var(--text-light);" id="chat-status-subtitle">Always here to support you</div>
+              </div>
+            </div>
+            <label style="display:flex; align-items:center; gap:6px; font-size:0.78rem; color:var(--text-muted); cursor:pointer;">
+              <input type="checkbox" id="save-history-toggle" checked style="accent-color:var(--primary-500);">
+              <span>Remember conversation</span>
+            </label>
+          </div>
+
+          <!-- Messages Scroll Area -->
+          <div class="chat-messages-scroll" id="chat-messages-container">
+            <!-- Initial Greeting -->
+            <div class="chat-bubble chat-bubble-assistant">
+              Hello! I'm your HerHealth educational companion. 🌸<br><br>
+              You can ask me questions about menstrual cramps, cycle irregularities, preparation tips, relaxation practices, or understanding when to consult a gynecologist. How can I help you today?
+              <div class="chat-timestamp">Today</div>
+            </div>
+          </div>
+
+          <!-- Suggested Prompt Pills -->
+          <div class="chat-suggestions-tray" aria-label="Suggested Questions">
+            <button class="suggestion-pill" data-question="Why do menstrual cramps occur?">Why do menstrual cramps occur?</button>
+            <button class="suggestion-pill" data-question="What can help me relax during my period?">What can help me relax?</button>
+            <button class="suggestion-pill" data-question="What may cause an irregular period?">Causes of irregular periods?</button>
+            <button class="suggestion-pill" data-question="What symptoms should I discuss with a doctor?">When to see a doctor?</button>
+            <button class="suggestion-pill" data-question="How can I prepare for my next period?">Preparing for next cycle?</button>
+          </div>
+
+          <!-- Input Bar -->
+          <form class="chat-input-bar" id="chat-form">
+            <input type="text" class="chat-text-input" id="chat-input" placeholder="Ask a question about your menstrual wellness..." autocomplete="off">
+            <button type="submit" class="btn btn-primary" id="chat-send-btn" style="border-radius:var(--radius-full); padding:10px 22px;">
+              <span>Send</span> <span>➤</span>
+            </button>
+          </form>
+        </div>
+      </main>
+
+      <footer class="app-footer">
+        <div>&copy; 2026 HerHealth AI — Respecting your privacy and sensitive health story.</div>
+        <div>Conversations are confidential and not shared with advertising networks.</div>
+      </footer>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/ai-assistant.js"></script>
+</body>
+</html>

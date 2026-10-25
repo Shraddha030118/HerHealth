@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HerHealth AI — Your Symptoms. Your Story. Your Health.</title>
+  <meta name="description" content="Integrated women's menstrual healthcare companion for cycle tracking, evidence-informed symptom analysis, relaxation, nutrition, and doctor-ready clinical reports.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+  <style>
+    /* Landing page hero & showcase */
+    .landing-nav {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .landing-hero {
+      max-width: 1100px;
+      margin: 40px auto 80px;
+      padding: 0 20px;
+      text-align: center;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--primary-100);
+      color: var(--primary-700);
+      padding: 6px 16px;
+      border-radius: var(--radius-full);
+      font-size: 0.85rem;
+      font-weight: 700;
+      margin-bottom: 24px;
+      box-shadow: 0 2px 10px rgba(124, 71, 217, 0.1);
+    }
+    .hero-title {
+      font-size: 3.4rem;
+      font-weight: 800;
+      letter-spacing: -1px;
+      line-height: 1.15;
+      margin-bottom: 20px;
+      background: linear-gradient(135deg, var(--text-main) 30%, var(--primary-600) 80%, var(--blush-500) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero-subtitle {
+      font-size: 1.25rem;
+      color: var(--text-muted);
+      max-width: 720px;
+      margin: 0 auto 36px;
+      line-height: 1.6;
+    }
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .features-grid {
+      max-width: 1200px;
+      margin: 0 auto 100px;
+      padding: 0 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+    }
+    .feature-card {
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-xl);
+      padding: 32px 28px;
+      box-shadow: var(--shadow-sm);
+      transition: all var(--transition-normal);
+      display: flex;
+      flex-direction: column;
+    }
+    .feature-card:hover {
+      transform: translateY(-6px);
+      box-shadow: var(--shadow-md);
+      border-color: var(--primary-300);
+    }
+    .feature-icon-box {
+      width: 52px;
+      height: 52px;
+      border-radius: var(--radius-md);
+      background: var(--primary-50);
+      color: var(--primary-600);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.6rem;
+      margin-bottom: 20px;
+    }
+    .feature-card h3 {
+      font-size: 1.25rem;
+      margin-bottom: 10px;
+    }
+    .feature-card p {
+      font-size: 0.92rem;
+      line-height: 1.6;
+    }
+    .privacy-banner {
+      max-width: 1000px;
+      margin: 0 auto 80px;
+      background: linear-gradient(135deg, var(--primary-50), #fff);
+      border: 1.5px solid var(--primary-200);
+      border-radius: var(--radius-xl);
+      padding: 36px 40px;
+      display: flex;
+      align-items: center;
+      gap: 28px;
+    }
+    @media (max-width: 768px) {
+      .hero-title { font-size: 2.3rem; }
+      .privacy-banner { flex-direction: column; text-align: center; padding: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <nav class="landing-nav" aria-label="Main Navigation">
+      <a href="/" class="brand-logo" id="landing-brand-link">
+        <div class="brand-icon">🌸</div>
+        <div class="brand-text">HerHealth <span class="brand-badge">AI</span></div>
+      </a>
+      <div style="display:flex; align-items:center; gap:14px;">
+        <a href="/pages/login.html" class="btn btn-secondary btn-sm" id="nav-login-btn">Sign In</a>
+        <a href="/pages/register.html" class="btn btn-primary btn-sm" id="nav-register-btn">Get Started</a>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <section class="landing-hero">
+      <div class="hero-badge">
+        <span>✨</span> Next-Gen Menstrual Healthcare Companion
+      </div>
+      <h1 class="hero-title">
+        Your Symptoms. Your Story.<br>Your Health.
+      </h1>
+      <p class="hero-subtitle">
+        An integrated healthcare platform designed to track menstrual cycles, understand symptoms with evidence-based intelligence, relieve discomfort, and organize doctor-ready clinical summaries.
+      </p>
+      <div class="hero-actions">
+        <a href="/pages/register.html" class="btn btn-primary btn-lg" id="hero-cta-btn">
+          <span>🌸</span> Start Your Health Journey
+        </a>
+        <a href="/pages/login.html" class="btn btn-secondary btn-lg" id="hero-demo-login-btn">
+          Sign In to Dashboard
+        </a>
+      </div>
+    </section>
+
+    <!-- Key Pillars Section -->
+    <section class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon-box">📅</div>
+        <h3>Intelligent Cycle Tracking</h3>
+        <p>Interactive calendar calculating historical cycle intervals, flow duration, and transparent cycle phase estimates without false certainties.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon-box">📊</div>
+        <h3>Daily Symptom Analytics</h3>
+        <p>Log cramps, headache, fatigue, flow, and pain levels from 0 to 10. Visualize trends and correlate mood patterns over time.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon-box">⚠️</div>
+        <h3>Evidence-Based Health Alerts</h3>
+        <p>Conservative clinical red-flag checks for unusually heavy bleeding, severe pain, and dizziness with explicit next-step healthcare guidance.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon-box">💬</div>
+        <h3>Educational AI Assistant</h3>
+        <p>Ask menstrual wellness questions with reliable educational explanations and an honest transparent demo fallback mode.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon-box">🧘</div>
+        <h3>Holistic Wellness & Breathing</h3>
+        <p>Interactive 4-7-8 parasympathetic breathwork, restorative yoga poses, soothing soundscapes, and activity completion tracking.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon-box">📋</div>
+        <h3>Doctor-Ready PDF Reports</h3>
+        <p>Export your authentic recorded period and symptom history into structured, print-friendly clinical summaries for medical consultations.</p>
+      </div>
+    </section>
+
+    <!-- Privacy & Ethics Commitment -->
+    <section class="privacy-banner">
+      <div style="font-size: 3rem;">🔒</div>
+      <div>
+        <h3 style="font-size: 1.35rem; margin-bottom: 8px;">Privacy-First Healthcare Architecture</h3>
+        <p style="font-size: 0.94rem; color: var(--text-muted); line-height: 1.6;">
+          Your health records belong solely to you. We never sell personal health information or transmit sensitive symptoms to external artificial intelligence services without explicit consent. Complete account and data deletion is available anytime in one click.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer" style="max-width: 1200px; margin: 0 auto; background: transparent;">
+    <div>&copy; 2026 HerHealth AI — Women's Menstrual Healthcare Companion.</div>
+    <div>Educational healthcare tool. Not a substitute for professional clinical medical advice.</div>
+  </footer>
+
+  <script src="/js/api.js"></script>
+</body>
+</html>

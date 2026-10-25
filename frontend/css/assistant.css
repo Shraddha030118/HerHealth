@@ -1,0 +1,165 @@
+/* ==========================================================================
+   HERHEALTH AI — AI ASSISTANT CHAT STYLES
+   ========================================================================== */
+
+.chat-card-container {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 180px);
+  min-height: 540px;
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.chat-header-bar {
+  padding: 16px 24px;
+  background: linear-gradient(90deg, #faf7fd, #ffffff);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.chat-provider-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: var(--primary-100);
+  color: var(--primary-700);
+  border: 1px solid var(--primary-200);
+}
+
+.chat-messages-scroll {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  background: radial-gradient(circle at 50% 0%, rgba(245, 242, 253, 0.4), transparent 70%);
+}
+
+.chat-bubble {
+  max-width: 78%;
+  padding: 14px 18px;
+  border-radius: var(--radius-lg);
+  font-size: 0.94rem;
+  line-height: 1.6;
+  position: relative;
+  word-wrap: break-word;
+}
+
+.chat-bubble-assistant {
+  align-self: flex-start;
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  box-shadow: var(--shadow-sm);
+  border-bottom-left-radius: 4px;
+}
+
+.chat-bubble-user {
+  align-self: flex-end;
+  background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+  color: #ffffff;
+  border-bottom-right-radius: 4px;
+  box-shadow: 0 4px 14px rgba(124, 71, 217, 0.2);
+}
+
+.chat-bubble-user p {
+  color: #ffffff;
+}
+
+.chat-timestamp {
+  font-size: 0.7rem;
+  opacity: 0.65;
+  margin-top: 6px;
+  text-align: right;
+}
+
+.chat-suggestions-tray {
+  padding: 12px 20px;
+  background: var(--bg-card-subtle);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.suggestion-pill {
+  background: #ffffff;
+  border: 1px solid var(--primary-200);
+  color: var(--primary-700);
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.suggestion-pill:hover {
+  background: var(--primary-100);
+  transform: translateY(-1px);
+}
+
+.chat-input-bar {
+  padding: 16px 20px;
+  background: #ffffff;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.chat-text-input {
+  flex: 1;
+  padding: 12px 18px;
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-full);
+  font-size: 0.94rem;
+  outline: none;
+  transition: all var(--transition-fast);
+}
+
+.chat-text-input:focus {
+  border-color: var(--primary-400);
+  box-shadow: 0 0 0 4px rgba(124, 71, 217, 0.1);
+}
+
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 16px;
+  background: var(--primary-50);
+  border-radius: var(--radius-lg);
+  align-self: flex-start;
+  width: fit-content;
+}
+
+.typing-dot {
+  width: 7px;
+  height: 7px;
+  background: var(--primary-400);
+  border-radius: 50%;
+  animation: typingBounce 1.2s infinite ease-in-out;
+}
+
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typingBounce {
+  0%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-6px); }
+}

@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — HerHealth AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar Navigation -->
+    <aside class="app-sidebar" aria-label="Main Navigation">
+      <div class="sidebar-header">
+        <a href="/pages/dashboard.html" class="brand-logo">
+          <div class="brand-icon">🌸</div>
+          <div class="brand-text">HerHealth <span class="brand-badge">AI</span></div>
+        </a>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-title">Core Menu</div>
+        <a href="/pages/dashboard.html" class="nav-link active">
+          <span class="nav-icon">📊</span>
+          <span>Dashboard</span>
+        </a>
+        <a href="/pages/period-tracker.html" class="nav-link">
+          <span class="nav-icon">📅</span>
+          <span>Period Tracker</span>
+        </a>
+        <a href="/pages/health-alerts.html" class="nav-link">
+          <span class="nav-icon">⚠️</span>
+          <span>Health Alerts</span>
+          <span class="nav-badge" id="sidebar-alert-badge" style="display:none;">0</span>
+        </a>
+        <a href="/pages/health-assessment.html" class="nav-link">
+          <span class="nav-icon">📝</span>
+          <span>Health Assessment</span>
+        </a>
+
+        <div class="nav-section-title">Care & Wellness</div>
+        <a href="/pages/ai-assistant.html" class="nav-link">
+          <span class="nav-icon">💬</span>
+          <span>AI Assistant</span>
+        </a>
+        <a href="/pages/wellness.html" class="nav-link">
+          <span class="nav-icon">🧘</span>
+          <span>Relaxation & Yoga</span>
+        </a>
+        <a href="/pages/nutrition.html" class="nav-link">
+          <span class="nav-icon">🥗</span>
+          <span>Nutrition & Water</span>
+        </a>
+
+        <div class="nav-section-title">Clinical & Settings</div>
+        <a href="/pages/health-report.html" class="nav-link">
+          <span class="nav-icon">📋</span>
+          <span>Doctor Report</span>
+        </a>
+        <a href="/pages/notifications.html" class="nav-link">
+          <span class="nav-icon">🔔</span>
+          <span>Notifications</span>
+          <span class="nav-badge notification-badge-count" style="display:none;">0</span>
+        </a>
+        <a href="/pages/profile.html" class="nav-link">
+          <span class="nav-icon">👤</span>
+          <span>My Profile</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <a href="/pages/profile.html" class="user-mini-profile">
+          <div class="user-avatar-circle user-avatar-display">H</div>
+          <div class="user-info-text">
+            <div class="user-name-text user-name-display">Loading...</div>
+            <div class="user-role-text">Personal Account</div>
+          </div>
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main Content Wrapper -->
+    <div class="app-main">
+      <header class="app-topbar">
+        <div class="topbar-left">
+          <button class="menu-toggle-btn" aria-label="Toggle navigation">☰</button>
+          <h1 class="page-title">Personal Health Dashboard</h1>
+        </div>
+        <div class="topbar-right">
+          <a href="/pages/notifications.html" class="topbar-icon-btn" aria-label="Notifications">
+            <span>🔔</span>
+            <span class="icon-badge notification-badge-count" style="display:none;">0</span>
+          </a>
+          <button class="btn btn-secondary btn-sm" onclick="logoutUser()">Sign Out</button>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <!-- Hero Greeting Banner -->
+        <section class="dashboard-hero">
+          <div>
+            <h2 class="hero-welcome-h1" id="greeting-text">Hello, Friend 🌸</h2>
+            <p class="hero-date-text" id="dashboard-date-display">Today is loading...</p>
+            <div class="quick-actions-row">
+              <button class="btn btn-primary btn-sm" id="open-log-symptoms-btn">
+                <span>➕</span> Log Today's Symptoms
+              </button>
+              <button class="btn btn-blush btn-sm" id="open-log-period-btn">
+                <span>📅</span> Record Period
+              </button>
+              <a href="/pages/ai-assistant.html" class="btn btn-secondary btn-sm">
+                <span>💬</span> Ask Health AI
+              </a>
+              <a href="/pages/wellness.html" class="btn btn-secondary btn-sm">
+                <span>🫁</span> 4-7-8 Breathing
+              </a>
+            </div>
+          </div>
+        </section>
+
+        <!-- Metric Cards Row -->
+        <section class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-icon-bubble metric-purple">🩸</div>
+            <div>
+              <div class="metric-value-title" id="metric-cycle-day">Day --</div>
+              <div class="metric-label-sub" id="metric-phase-name">Cycle Phase</div>
+            </div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-icon-bubble metric-pink">⏳</div>
+            <div>
+              <div class="metric-value-title" id="metric-next-period">-- Days</div>
+              <div class="metric-label-sub">Estimated Next Period</div>
+            </div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-icon-bubble metric-blue">📊</div>
+            <div>
+              <div class="metric-value-title" id="metric-avg-cycle">28 Days</div>
+              <div class="metric-label-sub" id="metric-regularity-note">Average Cycle Length</div>
+            </div>
+          </div>
+
+          <div class="metric-card">
+            <div class="metric-icon-bubble metric-teal">💧</div>
+            <div>
+              <div class="metric-value-title" id="metric-hydration">0 / 8</div>
+              <div class="metric-label-sub">Glasses of Water Today</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Phase Guidance Card -->
+        <div class="card" style="margin-bottom:28px; background:linear-gradient(135deg, #fff, var(--bg-card-subtle));">
+          <div style="display:flex; align-items:flex-start; gap:16px;">
+            <div style="font-size:2rem;" id="phase-icon">🌿</div>
+            <div>
+              <h3 style="font-size:1.15rem; margin-bottom:4px;" id="cycle-phase-title">Current Phase Insights</h3>
+              <p style="font-size:0.9rem;" id="cycle-phase-description">Log your past period to receive personalized phase guidance.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Main Dashboard Split Grid -->
+        <div class="dashboard-grid-main">
+          <!-- Left Column: Charts -->
+          <div style="display:flex; flex-direction:column; gap:24px;">
+            <!-- Pain Trend Chart Card -->
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title"><span>📈</span> Pain Intensity Trend (Last 14 Logs)</h3>
+                <span class="badge badge-lavender">0-10 Scale</span>
+              </div>
+              <div class="chart-container-box">
+                <canvas id="painChart"></canvas>
+              </div>
+            </div>
+
+            <!-- Symptom Frequency Chart Card -->
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title"><span>📊</span> Most Frequent Recurring Symptoms</h3>
+              </div>
+              <div class="chart-container-box">
+                <canvas id="symptomChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column: Recent Records & Health Alerts -->
+          <div style="display:flex; flex-direction:column; gap:24px;">
+            <!-- Health Alerts Preview -->
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title"><span>⚠️</span> Recent Health Alerts</h3>
+                <a href="/pages/health-alerts.html" style="font-size:0.82rem; font-weight:700;">View All</a>
+              </div>
+              <div id="dashboard-alerts-container">
+                <div class="empty-state" style="padding:24px 12px;">
+                  <div class="empty-state-icon" style="font-size:1.8rem;">✨</div>
+                  <div class="empty-state-title" style="font-size:0.95rem;">No Active Health Alerts</div>
+                  <div class="empty-state-desc" style="font-size:0.8rem; margin-bottom:0;">Your logged symptoms do not trigger red-flag concerns.</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Recent Period Log -->
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title"><span>🩸</span> Recent Period History</h3>
+                <a href="/pages/period-tracker.html" style="font-size:0.82rem; font-weight:700;">Full Tracker</a>
+              </div>
+              <div id="dashboard-periods-container">
+                <div class="empty-state" style="padding:24px 12px;">
+                  <div class="empty-state-icon" style="font-size:1.8rem;">📅</div>
+                  <div class="empty-state-title" style="font-size:0.95rem;">No Periods Logged Yet</div>
+                  <div class="empty-state-desc" style="font-size:0.8rem; margin-bottom:12px;">Record your period dates to begin cycle calculations.</div>
+                  <button class="btn btn-secondary btn-sm" onclick="document.getElementById('open-log-period-btn').click()">+ Record Period</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Recent Symptoms Log -->
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title"><span>📝</span> Recent Symptoms Log</h3>
+              </div>
+              <div id="dashboard-symptoms-container">
+                <div class="empty-state" style="padding:24px 12px;">
+                  <div class="empty-state-icon" style="font-size:1.8rem;">🌸</div>
+                  <div class="empty-state-title" style="font-size:0.95rem;">No Symptoms Logged</div>
+                  <div class="empty-state-desc" style="font-size:0.8rem; margin-bottom:12px;">Track cramps, mood, or energy daily.</div>
+                  <button class="btn btn-secondary btn-sm" onclick="document.getElementById('open-log-symptoms-btn').click()">+ Log Today</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <footer class="app-footer">
+        <div>&copy; 2026 HerHealth AI — Empowering women's menstrual health.</div>
+        <div>Educational companion only. Not a medical diagnostic tool.</div>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Modal: Record Period -->
+  <div class="modal-backdrop" id="period-modal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Record Menstrual Period</h3>
+        <button class="modal-close-btn" id="close-period-modal">&times;</button>
+      </div>
+      <form id="period-record-form">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label" for="period-start-date">Period Start Date *</label>
+            <input type="date" id="period-start-date" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="period-end-date">Period End Date (Leave empty if ongoing)</label>
+            <input type="date" id="period-end-date" class="form-input">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="period-flow">Flow Intensity</label>
+            <select id="period-flow" class="form-select">
+              <option value="spotting">Spotting (Very light droplets)</option>
+              <option value="light">Light</option>
+              <option value="medium" selected>Medium / Moderate</option>
+              <option value="heavy">Heavy (Soaking pads/tampons quickly)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="period-notes">Notes / Observations</label>
+            <textarea id="period-notes" class="form-textarea" rows="2" placeholder="e.g. Mild cramping, started early morning..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancel-period-modal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="save-period-btn">Save Period Record</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Log Symptoms -->
+  <div class="modal-backdrop" id="symptoms-modal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Log Daily Symptoms</h3>
+        <button class="modal-close-btn" id="close-symptoms-modal">&times;</button>
+      </div>
+      <form id="symptom-log-form">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label" for="symptom-date">Date</label>
+            <input type="date" id="symptom-date" class="form-input" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Select Symptoms Experienced Today</label>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px;" id="symptom-checkboxes">
+              <label><input type="checkbox" name="symptom" value="cramps"> Cramps / Pelvic pain</label>
+              <label><input type="checkbox" name="symptom" value="headache"> Headache / Migraine</label>
+              <label><input type="checkbox" name="symptom" value="fatigue"> Fatigue / Low energy</label>
+              <label><input type="checkbox" name="symptom" value="bloating"> Abdominal Bloating</label>
+              <label><input type="checkbox" name="symptom" value="back_pain"> Lower Back Pain</label>
+              <label><input type="checkbox" name="symptom" value="nausea"> Nausea</label>
+              <label><input type="checkbox" name="symptom" value="breast_tenderness"> Breast Tenderness</label>
+              <label><input type="checkbox" name="symptom" value="dizziness"> Dizziness / Lightheadedness</label>
+              <label><input type="checkbox" name="symptom" value="mood_swings"> Mood Swings</label>
+              <label><input type="checkbox" name="symptom" value="acne"> Skin Breakouts / Acne</label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="symptom-pain-range">
+              Pain Intensity: <span id="pain-level-label" style="font-weight:800; color:var(--primary-600);">0 / 10 (None)</span>
+            </label>
+            <input type="range" id="symptom-pain-range" min="0" max="10" value="0" style="width:100%; accent-color:var(--primary-500);">
+            <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-light);">
+              <span>0 (None)</span>
+              <span>5 (Moderate)</span>
+              <span>10 (Severe / Debilitating)</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="symptom-mood">Current Mood</label>
+            <select id="symptom-mood" class="form-select">
+              <option value="calm">Calm & Peaceful</option>
+              <option value="happy">Happy & Optimistic</option>
+              <option value="neutral" selected>Neutral</option>
+              <option value="sensitive">Emotionally Sensitive</option>
+              <option value="irritable">Irritable / Annoyed</option>
+              <option value="anxious">Anxious / Worried</option>
+              <option value="fatigued">Exhausted / Low Energy</option>
+              <option value="sad">Sad / Down</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="symptom-flow">Flow or Bleeding (if applicable)</label>
+            <select id="symptom-flow" class="form-select">
+              <option value="none" selected>None</option>
+              <option value="spotting">Spotting</option>
+              <option value="light">Light</option>
+              <option value="medium">Medium</option>
+              <option value="heavy">Heavy</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="symptom-notes">Notes</label>
+            <textarea id="symptom-notes" class="form-textarea" rows="2" placeholder="Any remedies used, physical activity, or dietary notes..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancel-symptoms-modal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="save-symptoms-btn">Save Symptom Log</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script type="module" src="/js/firebase-config.js"></script>
+  <script src="/js/firebase-service.js"></script>
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Health Alerts — HerHealth AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+  <style>
+    .alert-card-item {
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-xl);
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow-sm);
+      position: relative;
+      transition: all var(--transition-normal);
+    }
+    .alert-card-item.urgent {
+      border-left: 6px solid var(--status-urgent);
+      background: linear-gradient(135deg, #fff, #fff9f9);
+    }
+    .alert-card-item.high {
+      border-left: 6px solid var(--status-warning);
+    }
+    .alert-card-item.medium {
+      border-left: 6px solid #fbc02d;
+    }
+    .alert-card-item.low {
+      border-left: 6px solid var(--status-success);
+    }
+    .alert-card-item.is-read {
+      opacity: 0.72;
+    }
+    .alert-step-box {
+      background: var(--bg-card-subtle);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 14px 18px;
+      margin-top: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar Navigation -->
+    <aside class="app-sidebar" aria-label="Main Navigation">
+      <div class="sidebar-header">
+        <a href="/pages/dashboard.html" class="brand-logo">
+          <div class="brand-icon">🌸</div>
+          <div class="brand-text">HerHealth <span class="brand-badge">AI</span></div>
+        </a>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-title">Core Menu</div>
+        <a href="/pages/dashboard.html" class="nav-link">
+          <span class="nav-icon">📊</span>
+          <span>Dashboard</span>
+        </a>
+        <a href="/pages/period-tracker.html" class="nav-link">
+          <span class="nav-icon">📅</span>
+          <span>Period Tracker</span>
+        </a>
+        <a href="/pages/health-alerts.html" class="nav-link active">
+          <span class="nav-icon">⚠️</span>
+          <span>Health Alerts</span>
+          <span class="nav-badge" id="sidebar-alert-badge" style="display:none;">0</span>
+        </a>
+        <a href="/pages/health-assessment.html" class="nav-link">
+          <span class="nav-icon">📝</span>
+          <span>Health Assessment</span>
+        </a>
+
+        <div class="nav-section-title">Care & Wellness</div>
+        <a href="/pages/ai-assistant.html" class="nav-link">
+          <span class="nav-icon">💬</span>
+          <span>AI Assistant</span>
+        </a>
+        <a href="/pages/wellness.html" class="nav-link">
+          <span class="nav-icon">🧘</span>
+          <span>Relaxation & Yoga</span>
+        </a>
+        <a href="/pages/nutrition.html" class="nav-link">
+          <span class="nav-icon">🥗</span>
+          <span>Nutrition & Water</span>
+        </a>
+
+        <div class="nav-section-title">Clinical & Settings</div>
+        <a href="/pages/health-report.html" class="nav-link">
+          <span class="nav-icon">📋</span>
+          <span>Doctor Report</span>
+        </a>
+        <a href="/pages/notifications.html" class="nav-link">
+          <span class="nav-icon">🔔</span>
+          <span>Notifications</span>
+          <span class="nav-badge notification-badge-count" style="display:none;">0</span>
+        </a>
+        <a href="/pages/profile.html" class="nav-link">
+          <span class="nav-icon">👤</span>
+          <span>My Profile</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <a href="/pages/profile.html" class="user-mini-profile">
+          <div class="user-avatar-circle user-avatar-display">H</div>
+          <div class="user-info-text">
+            <div class="user-name-text user-name-display">Loading...</div>
+            <div class="user-role-text">Personal Account</div>
+          </div>
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="app-main">
+      <header class="app-topbar">
+        <div class="topbar-left">
+          <button class="menu-toggle-btn" aria-label="Toggle navigation">☰</button>
+          <h1 class="page-title">Symptom Review & Health Alerts</h1>
+        </div>
+        <div class="topbar-right">
+          <button class="btn btn-primary btn-sm" id="re-evaluate-btn">
+            <span>🔄</span> Re-Evaluate Symptoms
+          </button>
+          <button class="btn btn-secondary btn-sm" id="mark-all-read-btn">
+            Mark All Read
+          </button>
+          <button class="btn btn-secondary btn-sm" onclick="logoutUser()">Sign Out</button>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <!-- Safety Alert Banner -->
+        <div class="card" style="margin-bottom:24px; background:linear-gradient(135deg, #fff3e0, #fff); border:1.5px solid #ffe0b2;">
+          <div style="display:flex; align-items:flex-start; gap:16px;">
+            <div style="font-size:2.2rem;">🛡️</div>
+            <div>
+              <h3 style="font-size:1.1rem; color:#e65100; margin-bottom:4px;">Evidence-Informed Conservative Clinical Rules</h3>
+              <p style="font-size:0.88rem; color:var(--text-muted); line-height:1.5; margin-bottom:0;">
+                HerHealth AI actively cross-references your recorded symptoms, bleeding flow, and cycle durations against conservative medical guidelines.
+                <strong>Notice:</strong> This alert system is an educational safety net and not a medical diagnostic or emergency triage system.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter & Header Stats Bar -->
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
+          <div style="font-weight:700; font-size:1.1rem;" id="alerts-count-heading">Loading alerts...</div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-secondary btn-sm active" id="filter-all-btn">All Alerts</button>
+            <button class="btn btn-secondary btn-sm" id="filter-unread-btn">Unread Only</button>
+          </div>
+        </div>
+
+        <!-- Alerts Container -->
+        <div id="alerts-list-container">
+          <div class="empty-state">
+            <div class="empty-state-icon">✨</div>
+            <div class="empty-state-title">No Active Health Alerts</div>
+            <div class="empty-state-desc">Your recorded periods and symptoms are within typical parameters.</div>
+          </div>
+        </div>
+      </main>
+
+      <footer class="app-footer">
+        <div>&copy; 2026 HerHealth AI — Evidence-informed women's wellness.</div>
+        <div>Seek emergency clinical care immediately for severe sudden pain or fainting.</div>
+      </footer>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/health-alerts.js"></script>
+</body>
+</html>

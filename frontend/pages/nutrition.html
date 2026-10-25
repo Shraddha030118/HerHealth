@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nutrition & Hydration — HerHealth AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/nutrition.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar Navigation -->
+    <aside class="app-sidebar" aria-label="Main Navigation">
+      <div class="sidebar-header">
+        <a href="/pages/dashboard.html" class="brand-logo">
+          <div class="brand-icon">🌸</div>
+          <div class="brand-text">HerHealth <span class="brand-badge">AI</span></div>
+        </a>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-title">Core Menu</div>
+        <a href="/pages/dashboard.html" class="nav-link">
+          <span class="nav-icon">📊</span>
+          <span>Dashboard</span>
+        </a>
+        <a href="/pages/period-tracker.html" class="nav-link">
+          <span class="nav-icon">📅</span>
+          <span>Period Tracker</span>
+        </a>
+        <a href="/pages/health-alerts.html" class="nav-link">
+          <span class="nav-icon">⚠️</span>
+          <span>Health Alerts</span>
+        </a>
+        <a href="/pages/health-assessment.html" class="nav-link">
+          <span class="nav-icon">📝</span>
+          <span>Health Assessment</span>
+        </a>
+
+        <div class="nav-section-title">Care & Wellness</div>
+        <a href="/pages/ai-assistant.html" class="nav-link">
+          <span class="nav-icon">💬</span>
+          <span>AI Assistant</span>
+        </a>
+        <a href="/pages/wellness.html" class="nav-link">
+          <span class="nav-icon">🧘</span>
+          <span>Relaxation & Yoga</span>
+        </a>
+        <a href="/pages/nutrition.html" class="nav-link active">
+          <span class="nav-icon">🥗</span>
+          <span>Nutrition & Water</span>
+        </a>
+
+        <div class="nav-section-title">Clinical & Settings</div>
+        <a href="/pages/health-report.html" class="nav-link">
+          <span class="nav-icon">📋</span>
+          <span>Doctor Report</span>
+        </a>
+        <a href="/pages/notifications.html" class="nav-link">
+          <span class="nav-icon">🔔</span>
+          <span>Notifications</span>
+          <span class="nav-badge notification-badge-count" style="display:none;">0</span>
+        </a>
+        <a href="/pages/profile.html" class="nav-link">
+          <span class="nav-icon">👤</span>
+          <span>My Profile</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <a href="/pages/profile.html" class="user-mini-profile">
+          <div class="user-avatar-circle user-avatar-display">H</div>
+          <div class="user-info-text">
+            <div class="user-name-text user-name-display">Loading...</div>
+            <div class="user-role-text">Personal Account</div>
+          </div>
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="app-main">
+      <header class="app-topbar">
+        <div class="topbar-left">
+          <button class="menu-toggle-btn" aria-label="Toggle navigation">☰</button>
+          <h1 class="page-title">Menstrual Nutrition & Daily Hydration</h1>
+        </div>
+        <div class="topbar-right">
+          <button class="btn btn-secondary btn-sm" onclick="logoutUser()">Sign Out</button>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <!-- 1. Interactive Hydration Tracker -->
+        <div class="hydration-dashboard-card">
+          <div>
+            <span class="badge badge-lavender" style="margin-bottom:8px;">Daily Fluid Balance</span>
+            <h2 style="font-size:1.6rem; margin-bottom:6px;">Smart Hydration Tracker</h2>
+            <p style="font-size:0.92rem; color:var(--text-muted); max-width:540px; margin-bottom:16px;">
+              Adequate hydration flushes excess sodium to ease menstrual bloating and supports uterine blood circulation.
+            </p>
+
+            <div style="display:flex; align-items:center; gap:16px; margin-bottom:18px;">
+              <div>
+                <div style="font-size:1.8rem; font-weight:800; color:#00838f;" id="hydration-ml-text">0 / 2000 ml</div>
+                <div style="font-size:0.82rem; color:var(--text-muted);" id="hydration-glasses-text">0 of 8 standard glasses (250ml)</div>
+              </div>
+            </div>
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+              <button class="btn btn-primary" id="add-water-glass-btn">
+                <span>💧</span> +1 Glass (+250ml)
+              </button>
+              <button class="btn btn-secondary btn-sm" id="reset-water-btn">
+                Reset Today
+              </button>
+            </div>
+          </div>
+
+          <!-- Visual Water Bottle -->
+          <div class="hydration-bottle-visual">
+            <div class="hydration-water-fill" id="hydration-fill-bar"></div>
+          </div>
+        </div>
+
+        <!-- 2. Educational Food Pillars -->
+        <div style="margin-bottom:32px;">
+          <h2 style="font-size:1.35rem; margin-bottom:16px;">🥗 Menstrual Health Food Pillars</h2>
+          <div class="nutrition-category-grid" id="food-categories-container">
+            <!-- Dynamically populated food cards -->
+          </div>
+        </div>
+
+        <!-- 3. Balanced Meal Suggestions with Veg/Non-Veg Filter -->
+        <div class="card" style="margin-bottom:32px;">
+          <div class="card-header">
+            <div>
+              <h3 class="card-title"><span>🍲</span> Balanced Meal Inspirations</h3>
+              <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:0;">Scientifically tailored to replenish minerals and soothe cramps</p>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-secondary btn-sm active" id="meal-filter-all">All Meals</button>
+              <button class="btn btn-secondary btn-sm" id="meal-filter-veg">🌱 Vegetarian</button>
+              <button class="btn btn-secondary btn-sm" id="meal-filter-nonveg">🍗 Non-Veg</button>
+            </div>
+          </div>
+
+          <div id="meals-container">
+            <!-- Dynamically populated meals -->
+          </div>
+        </div>
+
+        <!-- Disclaimer -->
+        <div style="padding:14px 18px; border-radius:var(--radius-md); background:var(--primary-50); border:1px solid var(--primary-200); font-size:0.82rem; color:var(--text-muted);">
+          <strong>ℹ️ Nutritional Guidance Notice:</strong> Diet and hydration provide supportive physiological comfort. They do not replace clinical diagnosis or medical prescriptions for conditions like anemia, endometriosis, or PCOS.
+        </div>
+      </main>
+
+      <footer class="app-footer">
+        <div>&copy; 2026 HerHealth AI — Nourishing women's bodies with care.</div>
+        <div>Personal hydration logs persist securely in your database.</div>
+      </footer>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script type="module" src="/js/firebase-config.js"></script>
+  <script src="/js/firebase-service.js"></script>
+  <script src="/js/nutrition.js"></script>
+</body>
+</html>

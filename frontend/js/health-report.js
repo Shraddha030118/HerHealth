@@ -1,0 +1,154 @@
+/**
+ * HerHealth AI — Doctor-Ready Clinical Report Controller
+ */
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const user = await checkAuthAndInitUI();
+  if (!user) return;
+
+  setupReportControls();
+  await loadReportPreview();
+});
+
+function setupReportControls() {
+  const updateBtn = document.getElementById('update-report-preview-btn');
+  const downloadBtn = document.getElementById('download-pdf-btn');
+
+  updateBtn?.addEventListener('click', async () => {
+    await loadReportPreview();
+    showToast('Report preview refreshed.', 'info');
+  });
+
+  downloadBtn?.addEventListener('click', async () => {
+    downloadBtn.disabled = true;
+    const origText = downloadBtn.innerHTML;
+    downloadBtn.innerHTML = '<span>⏳</span> Generating PDF...';
+
+    const startDate = document.getElementById('report-start-filter').value;
+    const endDate = document.getElementById('report-end-filter').value;
+    const personalNotes = document.getElementById('report-personal-notes-input').value;
+
+    const queryParams = new URLSearchParams();
+    if (startDate) queryParams.set('startDate', startDate);
+    if (endDate) queryParams.set('endDate', endDate);
+    if (personalNotes) queryParams.set('personalNotes', personalNotes);
+
+    try {
+      const blob = await apiFetch(`/api/reports/download?${queryParams.toString()}`);
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `HerHealth_Clinical_Summary.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+      showToast('Doctor-ready PDF downloaded successfully! 📄', 'success');
+    } catch (err) {
+      showToast('PDF download failed: ' + err.message, 'error');
+    } finally {
+      downloadBtn.disabled = false;
+      downloadBtn.innerHTML = origText;
+    }
+  });
+}
+
+async function loadReportPreview() {
+  const startDate = document.getElementById('report-start-filter').value;
+  const endDate = document.getElementById('report-end-filter').value;
+  const personalNotes = document.getElementById('report-personal-notes-input').value;
+
+  try {
+    const res = await apiFetch('/api/reports/generate', {
+      method: 'POST',
+      body: { startDate, endDate, personalNotes }
+    });
+
+    renderReport(res.report);
+  } catch (err) {
+    showToast('Failed to compile report: ' + err.message, 'error');
+  }
+}
+
+function renderReport(report) {
+  if (!report) return;
+
+  // Header & Patient
+  document.getElementById('report-generated-timestamp').textContent =
+    `Generated: ${new Date(report.generatedAt).toLocaleString()} | Confidential Document`;
+
+  document.getElementById('rep-patient-name').textContent = report.patient.name;
+  document.getElementById('rep-patient-age').textContent = report.patient.age;
+  document.getElementById('rep-patient-email').textContent = report.patient.email;
+
+  // Cycle Metrics
+  const c = report.cycleSummary;
+  document.getElementById('rep-stat-periods').textContent = c.totalPeriodsLogged;
+  document.getElementById('rep-stat-avg-cycle').textContent = `${c.averageCycleLength}d ${c.isCycleLengthEstimated ? '(Est)' : ''}`;
+  document.getElementById('rep-stat-avg-duration').textContent = `${c.averagePeriodDuration}d ${c.isPeriodDurationEstimated ? '(Est)' : ''}`;
+  document.getElementById('rep-stat-regularity').textContent = c.regularityStatus.replace('_', ' ');
+
+  // Symptoms & Pain
+  const s = report.symptomSummary;
+  document.getElementById('rep-symptom-logs-count').textContent = s.totalLogs;
+  document.getElementById('rep-avg-pain').textContent = `${s.averagePainScore} / 10`;
+  document.getElementById('rep-peak-pain').textContent = `${s.peakPainScore} / 10`;
+
+  const topSymEl = document.getElementById('rep-top-symptoms-text');
+  if (s.topSymptoms && s.topSymptoms.length > 0) {
+    const listStr = s.topSymptoms.map(item => `<strong>${item.name}</strong> (${item.count}x)`).join(', ');
+    topSymEl.innerHTML = `Most frequent recurring symptoms: ${listStr}`;
+  } else {
+    topSymEl.textContent = 'No recurring symptoms logged in selected date range.';
+  }
+
+  // Periods Table
+  const tbody = document.getElementById('rep-periods-tbody');
+  tbody.innerHTML = '';
+  if (report.periods.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" style="padding:16px; text-align:center; color:#888;">No period dates recorded in this range.</td></tr>`;
+  } else {
+    report.periods.forEach(p => {
+      const tr = document.createElement('tr');
+      tr.style.borderBottom = '1px solid #eee';
+      tr.innerHTML = `
+        <td style="padding:10px;">${new Date(p.startDate).toLocaleDateString()}</td>
+        <td style="padding:10px;">${p.endDate ? new Date(p.endDate).toLocaleDateString() : 'Ongoing / unrecorded'}</td>
+        <td style="padding:10px;"><span class="badge ${p.flowIntensity === 'heavy' ? 'badge-urgent' : 'badge-lavender'}">${p.flowIntensity}</span></td>
+        <td style="padding:10px; color:#555;">${escapeHtml(p.notes || '-')}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Alerts
+  const alertsCont = document.getElementById('rep-alerts-container');
+  alertsCont.innerHTML = '';
+  if (report.recentAlerts.length === 0) {
+    alertsCont.innerHTML = '<div style="color:#2e7d32;">✓ No red-flag health alerts flagged during this period.</div>';
+  } else {
+    report.recentAlerts.forEach(al => {
+      const box = document.createElement('div');
+      box.style.cssText = 'padding:10px 14px; background:#fff3e0; border:1px solid #ffe0b2; border-radius:6px; margin-bottom:8px;';
+      box.innerHTML = `
+        <strong style="color:#e65100;">[${al.severity.toUpperCase()}] ${escapeHtml(al.title)}</strong>
+        <div style="font-size:0.85rem; color:#555; margin-top:2px;">${escapeHtml(al.explanation)}</div>
+      `;
+      alertsCont.appendChild(box);
+    });
+  }
+
+  // Doctor Questions Checklist
+  const qList = document.getElementById('rep-questions-list');
+  qList.innerHTML = '';
+  report.suggestedQuestions.forEach(q => {
+    const li = document.createElement('li');
+    li.style.marginBottom = '6px';
+    li.innerHTML = `[  ] ${escapeHtml(q)}`;
+    qList.appendChild(li);
+  });
+
+  // Personal Notes
+  const notesEl = document.getElementById('rep-patient-notes-display');
+  notesEl.textContent = report.patientNotes || 'None provided.';
+}

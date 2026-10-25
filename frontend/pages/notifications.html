@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notifications & Reminders — HerHealth AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+  <style>
+    .notif-card-item {
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 18px 22px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      box-shadow: var(--shadow-sm);
+      transition: all var(--transition-fast);
+    }
+    .notif-card-item.unread {
+      background: linear-gradient(90deg, var(--primary-50), #ffffff);
+      border-left: 4px solid var(--primary-500);
+    }
+    .preference-toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .preference-toggle-row:last-child {
+      border-bottom: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar Navigation -->
+    <aside class="app-sidebar" aria-label="Main Navigation">
+      <div class="sidebar-header">
+        <a href="/pages/dashboard.html" class="brand-logo">
+          <div class="brand-icon">🌸</div>
+          <div class="brand-text">HerHealth <span class="brand-badge">AI</span></div>
+        </a>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-title">Core Menu</div>
+        <a href="/pages/dashboard.html" class="nav-link">
+          <span class="nav-icon">📊</span>
+          <span>Dashboard</span>
+        </a>
+        <a href="/pages/period-tracker.html" class="nav-link">
+          <span class="nav-icon">📅</span>
+          <span>Period Tracker</span>
+        </a>
+        <a href="/pages/health-alerts.html" class="nav-link">
+          <span class="nav-icon">⚠️</span>
+          <span>Health Alerts</span>
+        </a>
+        <a href="/pages/health-assessment.html" class="nav-link">
+          <span class="nav-icon">📝</span>
+          <span>Health Assessment</span>
+        </a>
+
+        <div class="nav-section-title">Care & Wellness</div>
+        <a href="/pages/ai-assistant.html" class="nav-link">
+          <span class="nav-icon">💬</span>
+          <span>AI Assistant</span>
+        </a>
+        <a href="/pages/wellness.html" class="nav-link">
+          <span class="nav-icon">🧘</span>
+          <span>Relaxation & Yoga</span>
+        </a>
+        <a href="/pages/nutrition.html" class="nav-link">
+          <span class="nav-icon">🥗</span>
+          <span>Nutrition & Water</span>
+        </a>
+
+        <div class="nav-section-title">Clinical & Settings</div>
+        <a href="/pages/health-report.html" class="nav-link">
+          <span class="nav-icon">📋</span>
+          <span>Doctor Report</span>
+        </a>
+        <a href="/pages/notifications.html" class="nav-link active">
+          <span class="nav-icon">🔔</span>
+          <span>Notifications</span>
+          <span class="nav-badge notification-badge-count" style="display:none;">0</span>
+        </a>
+        <a href="/pages/profile.html" class="nav-link">
+          <span class="nav-icon">👤</span>
+          <span>My Profile</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <a href="/pages/profile.html" class="user-mini-profile">
+          <div class="user-avatar-circle user-avatar-display">H</div>
+          <div class="user-info-text">
+            <div class="user-name-text user-name-display">Loading...</div>
+            <div class="user-role-text">Personal Account</div>
+          </div>
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="app-main">
+      <header class="app-topbar">
+        <div class="topbar-left">
+          <button class="menu-toggle-btn" aria-label="Toggle navigation">☰</button>
+          <h1 class="page-title">Notifications & In-App Reminders</h1>
+        </div>
+        <div class="topbar-right">
+          <button class="btn btn-secondary btn-sm" id="notif-mark-all-read">
+            Mark All as Read
+          </button>
+          <button class="btn btn-danger btn-sm" id="notif-clear-all">
+            Clear History
+          </button>
+          <button class="btn btn-secondary btn-sm" onclick="logoutUser()">Sign Out</button>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <!-- Notifications List -->
+        <div style="margin-bottom:36px;">
+          <h2 style="font-size:1.35rem; margin-bottom:16px;">Inbox</h2>
+          <div id="notifications-inbox-container">
+            <div class="empty-state">
+              <div class="empty-state-icon">🔔</div>
+              <div class="empty-state-title">No Notifications</div>
+              <div class="empty-state-desc">You are all caught up on period estimates and reminders.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Notification Preferences -->
+        <div class="card" style="max-width:720px;">
+          <div class="card-header">
+            <h3 class="card-title"><span>⚙️</span> In-App Reminder Preferences</h3>
+            <span class="badge badge-lavender">Customizable</span>
+          </div>
+
+          <div>
+            <div class="preference-toggle-row">
+              <div>
+                <strong style="font-size:0.92rem;">Upcoming Period Estimates</strong>
+                <div style="font-size:0.8rem; color:var(--text-muted);">Receive a notice 3 days before your predicted cycle start date.</div>
+              </div>
+              <input type="checkbox" id="pref-period-reminder" checked style="accent-color:var(--primary-500); width:18px; height:18px; cursor:pointer;">
+            </div>
+
+            <div class="preference-toggle-row">
+              <div>
+                <strong style="font-size:0.92rem;">Daily Symptom Logging Reminders</strong>
+                <div style="font-size:0.8rem; color:var(--text-muted);">Encourage quick daily entries during your luteal and menstrual phases.</div>
+              </div>
+              <input type="checkbox" id="pref-symptom-reminder" checked style="accent-color:var(--primary-500); width:18px; height:18px; cursor:pointer;">
+            </div>
+
+            <div class="preference-toggle-row">
+              <div>
+                <strong style="font-size:0.92rem;">Wellness & Breathing Check-Ins</strong>
+                <div style="font-size:0.8rem; color:var(--text-muted);">Prompts to practice gentle 4-7-8 breathing on high-flow days.</div>
+              </div>
+              <input type="checkbox" id="pref-wellness-reminder" checked style="accent-color:var(--primary-500); width:18px; height:18px; cursor:pointer;">
+            </div>
+
+            <div class="preference-toggle-row">
+              <div>
+                <strong style="font-size:0.92rem;">Health Alert Notifications</strong>
+                <div style="font-size:0.8rem; color:var(--text-muted);">Immediate conservative notices for severe pain or unusual bleeding signs.</div>
+              </div>
+              <input type="checkbox" id="pref-health-alerts" checked style="accent-color:var(--primary-500); width:18px; height:18px; cursor:pointer;">
+            </div>
+          </div>
+
+          <div style="margin-top:20px; display:flex; justify-content:flex-end;">
+            <button class="btn btn-primary btn-sm" id="save-preferences-btn">
+              Save Preferences
+            </button>
+          </div>
+        </div>
+      </main>
+
+      <footer class="app-footer">
+        <div>&copy; 2026 HerHealth AI — In-app reminders and notifications.</div>
+        <div>Reminders are generated in-app from your recorded estimates.</div>
+      </footer>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/notifications.js"></script>
+</body>
+</html>
